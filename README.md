@@ -65,9 +65,9 @@ cd server && npm run db:seed
 | `/lobby` | Create / join room |
 | `/room/:code` | Waiting room |
 | `/game/:roomCode` | News + trading (1 round) |
-
-**Multiple rooms:** Yes — each lobby “Create Room” gets a unique 4-letter code. Many rooms can be `WAITING` or `ACTIVE` at the same time; game state is isolated per room in the database and in server memory (`GameManager.activeGames`).
 | `/results/:roomCode` | Final leaderboard |
+
+**Multiple rooms:** Yes — each “Create Room” gets a unique 4-letter code. Many rooms can run at the same time; game state is isolated per room.
 
 ## Scripts (server)
 
@@ -77,7 +77,8 @@ cd server && npm run db:seed
 | `npm run db:generate` | Generate Prisma Client |
 | `npm run db:migrate` | Apply migrations (dev) |
 | `npm run db:push` | Push schema without migration files |
-| `npm run db:seed` | Seed news cards (placeholder) |
+| `npm run db:reset` | Wipe DB and re-seed (dev only) |
+| `npm run db:seed` | Seed news cards |
 
 ## Stocks
 
