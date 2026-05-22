@@ -35,10 +35,6 @@ export function register(name, phone) {
   });
 }
 
-export function listRooms() {
-  return request('/api/rooms');
-}
-
 export function createRoom() {
   return request('/api/rooms/create', { method: 'POST' });
 }

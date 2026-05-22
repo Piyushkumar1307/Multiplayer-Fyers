@@ -536,30 +536,33 @@ class GameManager {
     this.clearTimers(game);
 
     try {
-      await this.resetRoomPlayers(game.roomId);
-
-      await prisma.room.update({
-        where: { id: game.roomId },
-        data: { status: 'WAITING' },
-      });
-
       const players = await prisma.roomPlayer.findMany({
         where: { roomId: game.roomId },
         include: { player: { select: { id: true, name: true } } },
       });
 
       const leaderboard = players
-        .map((rp) => ({
-          playerId: rp.player.id,
-          name: rp.player.name,
-          netWorth: rp.cash,
-          delta: rp.cash - STARTING_CASH,
-        }))
+        .map((rp) => {
+          const finalCash = rp.cash;
+          return {
+            playerId: rp.player.id,
+            name: rp.player.name,
+            netWorth: finalCash,
+            delta: finalCash - STARTING_CASH,
+          };
+        })
         .sort((a, b) => b.delta - a.delta)
         .map((entry, i) => ({ ...entry, rank: i + 1 }));
 
       const winner = leaderboard[0] || null;
       const payload = { leaderboard, winner };
+
+      await this.resetRoomPlayers(game.roomId);
+
+      await prisma.room.update({
+        where: { id: game.roomId },
+        data: { status: 'WAITING' },
+      });
 
       this.io.to(code).emit('gameEnd', payload);
 

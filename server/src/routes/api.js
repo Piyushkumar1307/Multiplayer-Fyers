@@ -33,27 +33,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.get('/rooms', requireAuth, async (_req, res) => {
-  try {
-    const rooms = await prisma.room.findMany({
-      where: { status: 'WAITING' },
-      include: { _count: { select: { players: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    res.json(
-      rooms.map((r) => ({
-        code: r.code,
-        playerCount: r._count.players,
-        status: r.status,
-      })),
-    );
-  } catch (err) {
-    console.error('list rooms', err);
-    res.status(500).json({ error: 'Failed to list rooms' });
-  }
-});
-
 router.post('/rooms/create', requireAuth, async (req, res) => {
   try {
     const code = await generateUniqueRoomCode();

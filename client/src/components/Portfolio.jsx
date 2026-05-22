@@ -1,6 +1,7 @@
-import { STOCKS, STOCK_META } from '../lib/constants';
+import { STOCKS, STOCK_META, STARTING_CASH } from '../lib/constants';
 
 export default function Portfolio({ cash, portfolio, prices, netWorth, compact = false }) {
+  const profit = (netWorth ?? 0) - STARTING_CASH;
   const holdings = STOCKS.filter((s) => (portfolio?.[s] || 0) > 0);
 
   if (compact) {
@@ -21,9 +22,16 @@ export default function Portfolio({ cash, portfolio, prices, netWorth, compact =
           </div>
         )}
         <div className="text-right">
-          <p className="text-[10px] uppercase text-slate-500">Net</p>
-          <p className="font-mono font-bold text-emerald-400">
+          <p className="text-[10px] uppercase text-slate-500">Net worth</p>
+          <p className="font-mono font-bold text-white text-xs">
             ₹{netWorth?.toLocaleString('en-IN')}
+          </p>
+          <p
+            className={`font-mono text-xs font-semibold ${
+              profit >= 0 ? 'text-emerald-400' : 'text-red-400'
+            }`}
+          >
+            {profit >= 0 ? '+' : ''}₹{profit.toLocaleString('en-IN')} P&L
           </p>
         </div>
       </div>
