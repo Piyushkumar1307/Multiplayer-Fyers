@@ -18,6 +18,7 @@ const {
   emptyPortfolio,
 } = require('../lib/portfolio');
 const { applyPriceDeltas } = require('../lib/prices');
+const { compareByNetWorth, compareByProfitDelta } = require('../lib/standings');
 
 function formatNewsCard(newsCard) {
   return {
@@ -167,20 +168,15 @@ class GameManager {
         portfolio: emptyPortfolio(),
         netWorth: STARTING_CASH,
         profitLoss: 0,
+        firstBuyAt: null,
       },
     });
   }
 
   buildStandingsFromRows(roomPlayers, prices) {
-    const sorted = [...roomPlayers].sort((a, b) => {
-      const aWorth = prices
-        ? netWorth(a.cash, a.portfolio, prices)
-        : a.netWorth;
-      const bWorth = prices
-        ? netWorth(b.cash, b.portfolio, prices)
-        : b.netWorth;
-      return bWorth - aWorth;
-    });
+    const sorted = [...roomPlayers].sort((a, b) =>
+      compareByNetWorth(a, b, prices),
+    );
 
     return sorted.map((rp, index) => {
       const player = rp.player || {};
@@ -613,9 +609,17 @@ class GameManager {
           prices: game.prices,
         });
 
+        const updateData = {
+          cash: result.cash,
+          portfolio: result.portfolio,
+        };
+        if (action === 'BUY' && !rp.firstBuyAt) {
+          updateData.firstBuyAt = new Date();
+        }
+
         await prisma.roomPlayer.update({
           where: { id: rp.id },
-          data: { cash: result.cash, portfolio: result.portfolio },
+          data: updateData,
         });
 
         await this.emitPortfolioUpdate(roomCode);
@@ -694,10 +698,12 @@ class GameManager {
       const players = await prisma.roomPlayer.findMany({
         where: { roomId: game.roomId },
         include: { player: { select: { id: true, name: true } } },
+        orderBy: { joinedAt: 'asc' },
       });
 
-      const leaderboard = players
-        .map((rp) => {
+      const leaderboard = [...players]
+        .sort(compareByProfitDelta)
+        .map((rp, i) => {
           const finalCash = rp.cash;
           const delta = rp.profitLoss ?? finalCash - STARTING_CASH;
           return {
@@ -705,10 +711,9 @@ class GameManager {
             name: rp.player.name,
             netWorth: finalCash,
             delta,
+            rank: i + 1,
           };
-        })
-        .sort((a, b) => b.delta - a.delta)
-        .map((entry, i) => ({ ...entry, rank: i + 1 }));
+        });
 
       const winner = leaderboard[0] || null;
       const payload = { leaderboard, winner };

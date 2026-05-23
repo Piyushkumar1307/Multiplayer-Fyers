@@ -1,46 +1,93 @@
 import { useEffect } from 'react';
+import NoSleep from 'nosleep.js';
 
 /**
- * Keeps the screen on while the app is visible (Screen Wake Lock API).
- * Works on mobile Chrome/Safari when the tab is active; may need a user gesture first.
+ * Keeps the device screen on while the app tab is open.
+ * Uses Screen Wake Lock when available, plus NoSleep video fallback for mobile Safari.
+ * Must be triggered from user interaction on iOS — we listen for touch/click globally.
  */
 export function useWakeLock(enabled = true) {
   useEffect(() => {
-    if (!enabled || typeof navigator === 'undefined' || !('wakeLock' in navigator)) {
+    if (!enabled || typeof document === 'undefined') {
       return undefined;
     }
 
-    let lock = null;
     let cancelled = false;
+    let wakeLock = null;
+    const noSleep = new NoSleep();
+    let noSleepActive = false;
 
-    async function acquire() {
+    async function acquireWakeLock() {
       if (cancelled || document.visibilityState !== 'visible') return;
+      if (!('wakeLock' in navigator)) return;
       try {
-        if (lock) return;
-        lock = await navigator.wakeLock.request('screen');
-        lock.addEventListener('release', () => {
-          lock = null;
+        if (wakeLock && !wakeLock.released) return;
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+          wakeLock = null;
+          if (!cancelled && document.visibilityState === 'visible') {
+            acquireWakeLock();
+          }
         });
       } catch {
-        // Ignored — unsupported, low battery, or background tab
+        // unsupported, denied, or needs gesture
       }
+    }
+
+    function enableNoSleep() {
+      if (cancelled || noSleepActive) return;
+      try {
+        noSleep.enable();
+        noSleepActive = true;
+      } catch {
+        // needs user gesture on some browsers
+      }
+    }
+
+    function keepAwake() {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      acquireWakeLock();
+      enableNoSleep();
     }
 
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
-        acquire();
+        keepAwake();
+      } else if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
       }
     }
 
-    acquire();
+    function onUserGesture() {
+      keepAwake();
+    }
+
+    keepAwake();
+
+    const gestureEvents = ['pointerdown', 'touchstart', 'click', 'keydown'];
+    gestureEvents.forEach((event) => {
+      document.addEventListener(event, onUserGesture, { capture: true, passive: true });
+    });
     document.addEventListener('visibilitychange', onVisibilityChange);
+
+  // Re-acquire periodically — mobile browsers may release wake lock during idle periods.
+    const intervalId = window.setInterval(keepAwake, 15000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
+      gestureEvents.forEach((event) => {
+        document.removeEventListener(event, onUserGesture, { capture: true });
+      });
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      if (lock) {
-        lock.release().catch(() => {});
-        lock = null;
+      if (wakeLock) {
+        wakeLock.release().catch(() => {});
+        wakeLock = null;
+      }
+      if (noSleepActive) {
+        noSleep.disable();
+        noSleepActive = false;
       }
     };
   }, [enabled]);

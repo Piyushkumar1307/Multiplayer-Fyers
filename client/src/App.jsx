@@ -5,6 +5,7 @@ import WaitingRoom from './pages/WaitingRoom';
 import Game from './pages/Game';
 import Results from './pages/Results';
 import GameRedirectListener from './components/GameRedirectListener';
+import ScreenAwakeHint from './components/ScreenAwakeHint';
 import { useWakeLock } from './hooks/useWakeLock';
 import { isLoggedIn } from './lib/auth';
 
@@ -19,6 +20,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <GameRedirectListener />
+      <ScreenAwakeHint />
       <Routes>
         <Route path="/" element={<Register />} />
         <Route
