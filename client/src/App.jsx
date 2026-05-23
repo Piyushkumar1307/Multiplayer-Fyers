@@ -5,6 +5,7 @@ import WaitingRoom from './pages/WaitingRoom';
 import Game from './pages/Game';
 import Results from './pages/Results';
 import GameRedirectListener from './components/GameRedirectListener';
+import { useWakeLock } from './hooks/useWakeLock';
 import { isLoggedIn } from './lib/auth';
 
 function RequireAuth({ children }) {
@@ -13,6 +14,8 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
+  useWakeLock(true);
+
   return (
     <BrowserRouter>
       <GameRedirectListener />

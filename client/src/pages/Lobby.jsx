@@ -33,6 +33,11 @@ export default function Lobby() {
     }
   }
 
+  function onSubmit(e) {
+    e.preventDefault();
+    handleJoin();
+  }
+
   return (
     <div className="min-h-svh min-h-dvh flex flex-col bg-slate-950 px-4 py-6 safe-top safe-bottom max-w-lg mx-auto w-full">
       <header className="text-center mb-8 shrink-0">
@@ -40,30 +45,31 @@ export default function Lobby() {
         <h1 className="text-2xl font-bold text-white mt-1">Join Game</h1>
       </header>
 
-      <div className="space-y-3 mt-4">
-        <p className="text-xs text-slate-500 uppercase text-center">Room code</p>
-        <p className="text-center text-slate-400 text-sm px-2">
-          Enter the code your admin shared with you. Rooms are not listed here.
-        </p>
-        <div className="flex gap-2">
+      <form onSubmit={onSubmit} className="space-y-4 mt-4 w-full">
+        <div>
+          <p className="text-xs text-slate-500 uppercase text-center mb-2">Room code</p>
+          <p className="text-center text-slate-400 text-sm px-2 mb-3">
+            Enter the code your admin shared with you. Rooms are not listed here.
+          </p>
           <input
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
             placeholder="ABCD"
             maxLength={4}
             disabled={loading}
-            className="flex-1 min-h-[52px] rounded-xl border border-slate-600 bg-slate-800 px-4 text-xl uppercase tracking-widest text-center font-mono disabled:opacity-50"
+            autoComplete="off"
+            autoCapitalize="characters"
+            className="w-full min-h-[52px] rounded-xl border border-slate-600 bg-slate-800 px-4 text-xl uppercase tracking-widest text-center font-mono disabled:opacity-50"
           />
-          <button
-            type="button"
-            disabled={loading}
-            onClick={handleJoin}
-            className="min-h-[52px] min-w-[80px] rounded-xl bg-emerald-600 font-bold disabled:opacity-50 touch-manipulation"
-          >
-            Join
-          </button>
         </div>
-      </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full min-h-[52px] rounded-xl bg-emerald-600 text-lg font-bold disabled:opacity-50 touch-manipulation active:scale-[0.98]"
+        >
+          {loading ? 'Joining…' : 'Join'}
+        </button>
+      </form>
 
       {error && (
         <p className="mt-4 text-red-400 text-sm text-center shrink-0">{error}</p>
