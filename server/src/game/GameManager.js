@@ -136,8 +136,10 @@ class GameManager {
     const game = this.getGame(roomCode);
     if (!game || game.phase !== 'trading') return;
     try {
+      await this.persistStandings(roomCode);
       const portfolios = await this.buildPortfoliosSnapshot(game);
       this.io.to(game.roomCode).emit('portfolioUpdated', { portfolios });
+      await this.emitAdminStandings(roomCode);
     } catch (err) {
       console.error(`[${roomCode}] portfolio update:`, err);
     }
@@ -160,8 +162,103 @@ class GameManager {
   async resetRoomPlayers(roomId) {
     await prisma.roomPlayer.updateMany({
       where: { roomId },
-      data: { cash: STARTING_CASH, portfolio: emptyPortfolio() },
+      data: {
+        cash: STARTING_CASH,
+        portfolio: emptyPortfolio(),
+        netWorth: STARTING_CASH,
+        profitLoss: 0,
+      },
     });
+  }
+
+  buildStandingsFromRows(roomPlayers, prices) {
+    const sorted = [...roomPlayers].sort((a, b) => {
+      const aWorth = prices
+        ? netWorth(a.cash, a.portfolio, prices)
+        : a.netWorth;
+      const bWorth = prices
+        ? netWorth(b.cash, b.portfolio, prices)
+        : b.netWorth;
+      return bWorth - aWorth;
+    });
+
+    return sorted.map((rp, index) => {
+      const player = rp.player || {};
+      const worth = prices
+        ? netWorth(rp.cash, rp.portfolio, prices)
+        : rp.netWorth;
+      const pl = prices ? worth - STARTING_CASH : rp.profitLoss;
+
+      return {
+        rank: index + 1,
+        playerId: player.id || rp.playerId,
+        name: player.name || 'Unknown',
+        phone: player.phone || null,
+        cash: rp.cash,
+        netWorth: worth,
+        profitLoss: pl,
+        portfolio: normalizePortfolio(rp.portfolio),
+      };
+    });
+  }
+
+  async fetchStandings(roomCode) {
+    const code = normalizeRoomCode(roomCode);
+    const room = await prisma.room.findUnique({
+      where: { code },
+      include: {
+        players: {
+          include: { player: { select: { id: true, name: true, phone: true } } },
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
+    });
+
+    if (!room) return null;
+
+    const game = this.getGame(code);
+    return this.buildStandingsFromRows(room.players, game?.prices);
+  }
+
+  async persistStandings(roomCode) {
+    const game = this.getGame(roomCode);
+    if (!game) return;
+
+    const roomPlayers = await prisma.roomPlayer.findMany({
+      where: { roomId: game.roomId },
+    });
+
+    await Promise.all(
+      roomPlayers.map((rp) => {
+        const worth = netWorth(rp.cash, rp.portfolio, game.prices);
+        return prisma.roomPlayer.update({
+          where: { id: rp.id },
+          data: {
+            netWorth: worth,
+            profitLoss: worth - STARTING_CASH,
+          },
+        });
+      }),
+    );
+  }
+
+  async emitAdminStandings(roomCode) {
+    const code = normalizeRoomCode(roomCode);
+    try {
+      const standings = await this.fetchStandings(code);
+      if (!standings) return;
+
+      const game = this.getGame(code);
+      this.io.to(`admin:${code}`).emit('standingsUpdated', {
+        roomCode: code,
+        phase: game?.phase || null,
+        standings,
+        playerCount: standings.length,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error(`[${code}] admin standings:`, err);
+    }
   }
 
   async nextDbRoundNumber(roomId) {
@@ -177,11 +274,9 @@ class GameManager {
     const code = normalizeRoomCode(roomCode);
     const room = await prisma.room.findUnique({ where: { code } });
     if (!room) return;
-    const players = (await this.buildRoomPlayers(room.id)).map((p) => ({
-      ...p,
-      isHost: p.id === room.hostId,
-    }));
+    const players = await this.buildRoomPlayers(room.id);
     this.io.to(code).emit('roomUpdated', { players });
+    await this.emitAdminStandings(code);
   }
 
   async joinRoom(socket, { roomCode, playerId }) {
@@ -211,22 +306,19 @@ class GameManager {
     }
 
     await this.emitRoomUpdated(code);
+  }
 
-    if (
-      room.status === 'WAITING' &&
-      room.players.length === MAX_PLAYERS &&
-      !this.activeGames.has(code)
-    ) {
-      await this.tryStartGame(code, room.hostId);
-    }
+  async startGameAsAdmin(roomCode) {
+    const code = normalizeRoomCode(roomCode);
+    return this.withStartLock(code, () => this.startGameInternal(code, { asAdmin: true }));
   }
 
   async tryStartGame(roomCode, hostId) {
     const code = normalizeRoomCode(roomCode);
-    return this.withStartLock(code, () => this.startGame(code, hostId));
+    return this.withStartLock(code, () => this.startGameInternal(code, { hostId }));
   }
 
-  async startGame(roomCode, hostId) {
+  async startGameInternal(roomCode, { hostId, asAdmin = false } = {}) {
     const code = normalizeRoomCode(roomCode);
 
     const room = await prisma.room.findUnique({
@@ -234,10 +326,22 @@ class GameManager {
       include: { players: true },
     });
 
-    if (!room) return;
-    if (room.hostId !== hostId) return;
-    if (room.players.length < MIN_PLAYERS_TO_START) return;
-    if (this.activeGames.has(code)) return;
+    if (!room) return asAdmin ? { error: 'Room not found' } : undefined;
+    if (!asAdmin && room.hostId !== hostId) return undefined;
+    if (room.status === 'ENDED') {
+      return asAdmin ? { error: 'This room has already ended' } : undefined;
+    }
+    if (room.status !== 'WAITING') {
+      return asAdmin ? { error: 'Room is not waiting for players' } : undefined;
+    }
+    if (room.players.length < MIN_PLAYERS_TO_START) {
+      return asAdmin
+        ? { error: `Need at least ${MIN_PLAYERS_TO_START} players` }
+        : undefined;
+    }
+    if (this.activeGames.has(code)) {
+      return asAdmin ? { error: 'Game already in progress' } : undefined;
+    }
 
     await this.resetRoomPlayers(room.id);
 
@@ -267,12 +371,14 @@ class GameManager {
 
     try {
       await this.runRound(code);
+      if (asAdmin) return { ok: true };
     } catch (err) {
       console.error(`[${code}] runRound failed:`, err);
       this.teardownGame(code, room.id);
       this.io.to(code).emit('error', {
         message: 'Failed to start round. Please try again.',
       });
+      if (asAdmin) return { error: 'Failed to start round' };
     }
   }
 
@@ -408,6 +514,7 @@ class GameManager {
         this.io.to(game.roomCode).emit('newsUpdate', newsPayload);
       }
 
+      await this.persistStandings(roomCode);
       await this.emitPortfolioUpdate(game.roomCode);
     } catch (err) {
       console.error(`[${roomCode}] publishNews:`, err);
@@ -507,12 +614,20 @@ class GameManager {
       await Promise.all(
         roomPlayers.map((rp) => {
           const sold = autoSellAll(rp.cash, rp.portfolio, tradePrices);
+          const worth = sold.cash;
           return prisma.roomPlayer.update({
             where: { id: rp.id },
-            data: { cash: sold.cash, portfolio: sold.portfolio },
+            data: {
+              cash: sold.cash,
+              portfolio: sold.portfolio,
+              netWorth: worth,
+              profitLoss: worth - STARTING_CASH,
+            },
           });
         }),
       );
+
+      await this.emitAdminStandings(roomCode);
 
       await prisma.gameRound.update({
         where: { id: game.roundId },
@@ -544,11 +659,12 @@ class GameManager {
       const leaderboard = players
         .map((rp) => {
           const finalCash = rp.cash;
+          const delta = rp.profitLoss ?? finalCash - STARTING_CASH;
           return {
             playerId: rp.player.id,
             name: rp.player.name,
             netWorth: finalCash,
-            delta: finalCash - STARTING_CASH,
+            delta,
           };
         })
         .sort((a, b) => b.delta - a.delta)
@@ -557,11 +673,28 @@ class GameManager {
       const winner = leaderboard[0] || null;
       const payload = { leaderboard, winner };
 
-      await this.resetRoomPlayers(game.roomId);
-
       await prisma.room.update({
         where: { id: game.roomId },
-        data: { status: 'WAITING' },
+        data: {
+          status: 'ENDED',
+          winnerId: winner?.playerId || null,
+          winnerName: winner?.name || null,
+          winnerProfitLoss: winner?.delta ?? null,
+          closedAt: new Date(),
+        },
+      });
+
+      await this.emitAdminStandings(code);
+      this.io.to(`admin:${code}`).emit('gameEnded', {
+        roomCode: code,
+        leaderboard,
+        winner,
+      });
+
+      this.io.to('admin:dashboard').emit('adminPanelRefresh', {
+        roomCode: code,
+        winner,
+        leaderboard,
       });
 
       this.io.to(code).emit('gameEnd', payload);
@@ -582,6 +715,24 @@ class GameManager {
 
   handleDisconnect(playerId) {
     this.playerRoom.delete(playerId);
+  }
+
+  async deleteAllRooms() {
+    for (const [code, game] of this.activeGames.entries()) {
+      this.bumpEpoch(game);
+      this.clearTimers(game);
+      this.io.to(code).emit('roomClosed', {
+        message: 'This room was removed by admin.',
+      });
+    }
+
+    this.activeGames.clear();
+    this.tradeLocks.clear();
+    this.startLocks.clear();
+    this.playerRoom.clear();
+
+    const result = await prisma.room.deleteMany({});
+    return { deletedCount: result.count };
   }
 }
 

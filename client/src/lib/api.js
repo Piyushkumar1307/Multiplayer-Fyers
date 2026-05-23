@@ -1,6 +1,5 @@
 import { getSessionToken } from './auth';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+import { getApiUrl } from './url';
 
 async function request(path, options = {}) {
   const headers = {
@@ -11,12 +10,13 @@ async function request(path, options = {}) {
   const token = getSessionToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
+  const apiUrl = getApiUrl();
   let res;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...options, headers });
+    res = await fetch(`${apiUrl}${path}`, { ...options, headers });
   } catch {
     throw new Error(
-      `Cannot reach API at ${API_URL}. Start the server: cd server && npm run dev`,
+      `Cannot reach API at ${apiUrl}. Check VITE_API_URL and that the server is running.`,
     );
   }
 
@@ -33,10 +33,6 @@ export function register(name, phone) {
     method: 'POST',
     body: JSON.stringify({ name, phone }),
   });
-}
-
-export function createRoom() {
-  return request('/api/rooms/create', { method: 'POST' });
 }
 
 export function joinRoom(roomCode) {

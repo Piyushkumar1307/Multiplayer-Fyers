@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Leaderboard from '../components/Leaderboard';
 import Confetti from '../components/Confetti';
 import { getPlayerId } from '../lib/auth';
+import { formatProfit } from '../lib/format';
 
 const LOBBY_DELAY_SEC = 5;
 
@@ -45,7 +46,7 @@ export default function Results() {
             </p>
             <p className="text-2xl font-bold text-amber-100">{winner.name}</p>
             <p className="mt-1 text-xl font-mono text-emerald-400">
-              {winner.delta >= 0 ? '+' : ''}₹{winner.delta?.toLocaleString('en-IN')}
+              {formatProfit(winner.delta)}
             </p>
           </div>
         )}

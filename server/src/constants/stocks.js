@@ -12,8 +12,8 @@ const STARTING_CASH = 10000;
 const TOTAL_ROUNDS = 1;
 const TRADING_SECONDS = 180;
 const NEWS_EVENTS_PER_GAME = 5;
-const MAX_PLAYERS = 2;
-const MIN_PLAYERS_TO_START = 2;
+const MAX_PLAYERS = 20;
+const MIN_PLAYERS_TO_START = 5;
 
 module.exports = {
   STOCKS,

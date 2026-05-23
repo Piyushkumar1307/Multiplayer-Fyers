@@ -1,4 +1,5 @@
 const { prisma } = require('../lib/prisma');
+const { verifyAdminToken } = require('../middleware/adminAuth');
 
 function safeHandler(socket, eventName, handler) {
   return async (payload) => {
@@ -23,17 +24,39 @@ function registerSocketHandlers(io, gameManager) {
     );
 
     socket.on(
-      'startGame',
-      safeHandler(socket, 'startGame', async (payload) => {
-        const { roomCode, playerId } = payload || {};
-        const pid = playerId || socket.data.playerId;
-        if (!roomCode || !pid) return;
+      'adminConnect',
+      safeHandler(socket, 'adminConnect', async (payload) => {
+        const { adminToken } = payload || {};
+        if (!verifyAdminToken(adminToken)) {
+          socket.emit('adminError', { message: 'Unauthorized' });
+          return;
+        }
+        socket.join('admin:dashboard');
+      }),
+    );
 
-        const code = String(roomCode).toUpperCase();
-        const room = await prisma.room.findUnique({ where: { code } });
-        if (!room || room.hostId !== pid) return;
+    socket.on(
+      'adminSubscribe',
+      safeHandler(socket, 'adminSubscribe', async (payload) => {
+        const { roomCode, adminToken } = payload || {};
+        if (!roomCode || !verifyAdminToken(adminToken)) {
+          socket.emit('adminError', { message: 'Unauthorized' });
+          return;
+        }
 
-        await gameManager.tryStartGame(code, pid);
+        const code = String(roomCode).trim().toUpperCase();
+        socket.join(`admin:${code}`);
+        socket.data.adminRoom = code;
+
+        const standings = await gameManager.fetchStandings(code);
+        const game = gameManager.getGame(code);
+        socket.emit('standingsUpdated', {
+          roomCode: code,
+          phase: game?.phase || null,
+          standings: standings || [],
+          playerCount: standings?.length ?? 0,
+          updatedAt: new Date().toISOString(),
+        });
       }),
     );
 

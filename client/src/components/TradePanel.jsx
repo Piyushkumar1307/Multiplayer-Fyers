@@ -1,4 +1,5 @@
 import { STOCK_META } from '../lib/constants';
+import { formatUnits } from '../lib/format';
 
 export default function TradePanel({
   stock,
@@ -25,7 +26,7 @@ export default function TradePanel({
           <p className="text-xs text-slate-400">{meta.name}</p>
         </div>
         <div className="text-right">
-          <p className="font-mono">₹{price}</p>
+          <p className="font-mono">{formatUnits(price)}</p>
           <p className="text-xs text-slate-400">{held} held</p>
         </div>
       </div>

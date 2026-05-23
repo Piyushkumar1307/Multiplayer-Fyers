@@ -13,6 +13,7 @@ import NewsBanner from '../components/NewsBanner';
 import TradePanel from '../components/TradePanel';
 import Portfolio from '../components/Portfolio';
 import Timer from '../components/Timer';
+import { formatProfit } from '../lib/format';
 
 function priceFlashes(previousPrices, currentPrices) {
   const flashes = {};
@@ -226,8 +227,7 @@ export default function Game() {
               🏆 {endOverlay.winner?.name}
             </p>
             <p className="text-emerald-400 font-mono text-sm mb-4">
-              {endOverlay.winner?.delta >= 0 ? '+' : ''}₹
-              {endOverlay.winner?.delta?.toLocaleString('en-IN')} profit
+              {formatProfit(endOverlay.winner?.delta)}
             </p>
             <p className="text-xs text-slate-400 animate-pulse">
               Everyone returns to lobby shortly…

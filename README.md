@@ -1,92 +1,141 @@
 # Multiplayer Stock Market Simulator
 
-Browser-based multiplayer stock trading simulator (fictional stocks, virtual money).
+Browser-based multiplayer stock trading simulator (fictional stocks, virtual ₹10,000).
 
 ## Structure
 
 ```
-/client        → React (Vite) + TailwindCSS
-/server        → Node.js + Express + Socket.io
-/server/prisma → PostgreSQL schema (Prisma)
+/client   → Player app (React + Vite) — Netlify
+/admin    → Admin dashboard (React + Vite) — Netlify
+/server   → API + Socket.io + game engine — Render
 ```
 
-## Prerequisites
+## Local development
 
-- Node.js 18+
-- PostgreSQL (e.g. [Neon](https://neon.tech) for hosted DB)
-
-## Setup
-
-### 1. Database
-
-Copy env files and set your connection string:
+### 1. Server
 
 ```bash
 cp server/.env.example server/.env
-cp client/.env.example client/.env
-```
+# Edit DATABASE_URL, ADMIN_SECRET, etc.
 
-Edit `server/.env` with your `DATABASE_URL`, `SESSION_SECRET`, etc.
-
-### 2. Server
-
-```bash
 cd server
 npm install
-npm run db:setup   # pushes schema to DB + seeds news cards
+npm run db:setup
 npm run dev
 ```
 
-Use `db:setup` instead of `db:migrate` if migrate hangs asking for a migration name.
+Runs at **http://localhost:4000**
 
-Server runs at `http://localhost:4000`. **Registration will fail with no response until this is running.**
+### 2. Player app
 
-### 3. Client
+```bash
+cp client/.env.example client/.env
+cd client && npm install && npm run dev
+```
+
+**http://localhost:5173**
+
+### 3. Admin panel
+
+```bash
+cp admin/.env.example admin/.env
+cd admin && npm install && npm run dev
+```
+
+**http://localhost:5174** — login with `ADMIN_SECRET` from `server/.env`
+
+### Flow
+
+1. Admin creates a room → shares 4-letter code  
+2. Players register → enter code → wait  
+3. Admin starts game → live P&amp;L on admin dashboard  
+4. Game runs → results → back to lobby  
+
+---
+
+## Production deploy
+
+### Render (backend)
+
+1. New **Web Service** → connect repo → **Root directory:** `server`
+2. **Build command:** `npm install && npm run build`
+3. **Start command:** `npm start`
+4. **Environment variables:**
+
+| Key | Value |
+|-----|--------|
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | Neon PostgreSQL URL |
+| `SESSION_SECRET` | long random string |
+| `ADMIN_SECRET` | admin login password |
+| `CLIENT_URL` | `https://your-player.netlify.app` |
+| `ADMIN_URL` | `https://your-admin.netlify.app` |
+
+No trailing slashes on URLs. Use `ALLOWED_ORIGINS` for extra Netlify preview URLs (comma-separated).
+
+Health check: `GET /api/health`
+
+Or use the included `render.yaml` blueprint.
+
+### Netlify (player app)
+
+**Option A — Git connect**
+
+- Base directory: `client`
+- Build: `npm run build`
+- Publish: `dist`
+- Env (build time): `VITE_API_URL`, `VITE_SOCKET_URL` → your Render URL
+
+**Option B — Drag & drop**
 
 ```bash
 cd client
-npm install
-npm run dev
+# set VITE_* in .env first
+npm run build
+# upload client/dist to Netlify Drop
 ```
 
-Client runs at `http://localhost:5173`.
+`client/netlify.toml` and `client/public/_redirects` handle SPA routing.
 
-Seed news cards (required before playing):
+### Netlify (admin app)
+
+Same as player, but base directory **`admin`**.
 
 ```bash
-cd server && npm run db:seed
+cd admin
+# set VITE_API_URL and VITE_SOCKET_URL to Render URL
+npm run build
+# upload admin/dist
 ```
 
-## App routes
+---
 
-| Path | Screen |
-|------|--------|
-| `/` | Registration (name + phone) |
-| `/lobby` | Create / join room |
-| `/room/:code` | Waiting room |
-| `/game/:roomCode` | News + trading (1 round) |
-| `/results/:roomCode` | Final leaderboard |
+## Env checklist (production)
 
-**Multiple rooms:** Yes — each “Create Room” gets a unique 4-letter code. Many rooms can run at the same time; game state is isolated per room.
+| Where | Variable | Points to |
+|-------|----------|-----------|
+| Render | `CLIENT_URL` | Player Netlify URL |
+| Render | `ADMIN_URL` | Admin Netlify URL |
+| Render | `ADMIN_SECRET` | Admin password |
+| Netlify (client) | `VITE_API_URL` | Render URL |
+| Netlify (client) | `VITE_SOCKET_URL` | Render URL |
+| Netlify (admin) | `VITE_API_URL` | Render URL |
+| Netlify (admin) | `VITE_SOCKET_URL` | Render URL |
+
+After changing Render env vars → **Manual Deploy**.  
+After changing Netlify env vars → **Rebuild** (Vite bakes env at build time).
+
+---
 
 ## Scripts (server)
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start API + Socket.io with nodemon |
-| `npm run db:generate` | Generate Prisma Client |
-| `npm run db:migrate` | Apply migrations (dev) |
-| `npm run db:push` | Push schema without migration files |
-| `npm run db:reset` | Wipe DB and re-seed (dev only) |
-| `npm run db:seed` | Seed news cards |
+| `npm run dev` | API + Socket.io (nodemon) |
+| `npm run build` | `prisma db push` + seed (Render) |
+| `npm start` | Production server |
+| `npm run db:setup` | Local schema push + seed |
 
 ## Stocks
 
-| Ticker | Name |
-|--------|------|
-| AERO | AeroCore |
-| GRNV | GreenVolt |
-| NXBK | NexBank |
-| PHRX | PharmaX |
-
-Starting price: ₹100 each.
+AERO, GRNV, NXBK, PHRX — starting price ₹100 each.

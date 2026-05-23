@@ -1,4 +1,5 @@
 import { STOCKS, STOCK_META, STARTING_CASH } from '../lib/constants';
+import { formatSignedUnits, formatUnits } from '../lib/format';
 
 export default function Portfolio({ cash, portfolio, prices, netWorth, compact = false }) {
   const profit = (netWorth ?? 0) - STARTING_CASH;
@@ -9,7 +10,7 @@ export default function Portfolio({ cash, portfolio, prices, netWorth, compact =
       <div className="flex items-center justify-between gap-3 text-sm w-full">
         <div>
           <p className="text-[10px] uppercase text-slate-500">Cash</p>
-          <p className="font-mono font-semibold">₹{cash?.toLocaleString('en-IN')}</p>
+          <p className="font-mono font-semibold">{formatUnits(cash)}</p>
         </div>
         {holdings.length > 0 && (
           <div className="flex-1 min-w-0 overflow-x-auto">
@@ -23,15 +24,13 @@ export default function Portfolio({ cash, portfolio, prices, netWorth, compact =
         )}
         <div className="text-right">
           <p className="text-[10px] uppercase text-slate-500">Net worth</p>
-          <p className="font-mono font-bold text-white text-xs">
-            ₹{netWorth?.toLocaleString('en-IN')}
-          </p>
+          <p className="font-mono font-bold text-white text-xs">{formatUnits(netWorth)}</p>
           <p
             className={`font-mono text-xs font-semibold ${
               profit >= 0 ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
-            {profit >= 0 ? '+' : ''}₹{profit.toLocaleString('en-IN')} P&L
+            {formatSignedUnits(profit)} P&amp;L
           </p>
         </div>
       </div>
@@ -46,7 +45,7 @@ export default function Portfolio({ cash, portfolio, prices, netWorth, compact =
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span>Cash</span>
-          <span className="font-mono">₹{cash?.toLocaleString('en-IN')}</span>
+          <span className="font-mono">{formatUnits(cash)}</span>
         </div>
         {holdings.map((s) => {
           const shares = portfolio[s];
@@ -56,15 +55,13 @@ export default function Portfolio({ cash, portfolio, prices, netWorth, compact =
               <span>
                 {STOCK_META[s].ticker} × {shares}
               </span>
-              <span className="font-mono">₹{value.toLocaleString('en-IN')}</span>
+              <span className="font-mono">{formatUnits(value)}</span>
             </div>
           );
         })}
         <div className="border-t border-slate-600 pt-2 flex justify-between font-semibold">
           <span>Net worth</span>
-          <span className="font-mono text-emerald-400">
-            ₹{netWorth?.toLocaleString('en-IN')}
-          </span>
+          <span className="font-mono text-emerald-400">{formatUnits(netWorth)}</span>
         </div>
       </div>
     </aside>

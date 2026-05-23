@@ -1,5 +1,6 @@
 import { STOCK_META } from '../lib/constants';
 import { deltaPercent } from '../lib/prices';
+import { formatUnits } from '../lib/format';
 
 export default function StockCard({ stock, price, previousPrice, flash }) {
   const meta = STOCK_META[stock];
@@ -32,7 +33,7 @@ export default function StockCard({ stock, price, previousPrice, flash }) {
           {change}%
         </span>
       </div>
-      <p className="mt-1 text-lg font-mono leading-tight">₹{price}</p>
+      <p className="mt-1 text-lg font-mono leading-tight">{formatUnits(price)}</p>
     </div>
   );
 }

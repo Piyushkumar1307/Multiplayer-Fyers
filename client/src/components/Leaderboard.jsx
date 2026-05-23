@@ -1,4 +1,5 @@
 import { STARTING_CASH } from '../lib/constants';
+import { formatSignedUnits, formatUnits } from '../lib/format';
 
 export default function Leaderboard({ leaderboard, showConfetti }) {
   return (
@@ -25,19 +26,17 @@ export default function Leaderboard({ leaderboard, showConfetti }) {
               <div className="flex-1 text-left">
                 <p className="font-semibold">{entry.name}</p>
                 <p className="text-xs text-slate-400">
-                  Started ₹{STARTING_CASH.toLocaleString('en-IN')}
+                  Started {formatUnits(STARTING_CASH)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="font-mono font-semibold">
-                  ₹{entry.netWorth?.toLocaleString('en-IN')}
-                </p>
+                <p className="font-mono font-semibold">{formatUnits(entry.netWorth)}</p>
                 <p
                   className={`text-sm font-medium ${
                     up ? 'text-emerald-400' : 'text-red-400'
                   }`}
                 >
-                  {up ? '+' : ''}₹{profit.toLocaleString('en-IN')}
+                  {formatSignedUnits(profit)}
                 </p>
               </div>
             </li>

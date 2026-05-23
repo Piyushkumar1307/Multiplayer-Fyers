@@ -2,7 +2,6 @@ const express = require('express');
 const crypto = require('crypto');
 const { prisma } = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { generateUniqueRoomCode } = require('../lib/roomCode');
 const { normalizePortfolio, emptyPortfolio } = require('../lib/portfolio');
 const { MAX_PLAYERS } = require('../constants/stocks');
 
@@ -33,30 +32,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/rooms/create', requireAuth, async (req, res) => {
-  try {
-    const code = await generateUniqueRoomCode();
-
-    const room = await prisma.room.create({
-      data: {
-        code,
-        hostId: req.player.id,
-        players: {
-          create: {
-            playerId: req.player.id,
-            portfolio: emptyPortfolio(),
-          },
-        },
-      },
-    });
-
-    res.json({ roomCode: room.code });
-  } catch (err) {
-    console.error('create room', err);
-    res.status(500).json({ error: 'Failed to create room' });
-  }
-});
-
 router.post('/rooms/join', requireAuth, async (req, res) => {
   try {
     const code = String(req.body.roomCode || '')
@@ -73,6 +48,9 @@ router.post('/rooms/join', requireAuth, async (req, res) => {
     });
 
     if (!room) return res.status(404).json({ error: 'Room not found' });
+    if (room.status === 'ENDED') {
+      return res.status(400).json({ error: 'This room has closed. Ask admin for a new code.' });
+    }
     if (room.status !== 'WAITING') {
       return res.status(400).json({ error: 'Room is not accepting players' });
     }
@@ -121,14 +99,14 @@ router.get('/rooms/:code', requireAuth, async (req, res) => {
       room: {
         code: room.code,
         status: room.status,
-        hostId: room.hostId,
+        winnerName: room.winnerName,
+        winnerProfitLoss: room.winnerProfitLoss,
       },
       players: room.players.map((rp) => ({
         id: rp.player.id,
         name: rp.player.name,
         cash: rp.cash,
         portfolio: normalizePortfolio(rp.portfolio),
-        isHost: rp.playerId === room.hostId,
       })),
     });
   } catch (err) {
