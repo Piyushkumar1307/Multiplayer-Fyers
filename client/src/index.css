@@ -23,6 +23,13 @@ body {
 
 #root {
   min-height: 100svh;
+  min-height: 100dvh;
+}
+
+html,
+body {
+  overflow: hidden;
+  height: 100%;
 }
 
 @keyframes fadeIn {

@@ -24,6 +24,32 @@ function priceFlashes(previousPrices, currentPrices) {
   return flashes;
 }
 
+function applyRoundPayload(payload, playerId, {
+  setEndOverlay,
+  setRoundNumber,
+  setPhase,
+  setSecondsLeft,
+  setStatusMessage,
+  setPortfolio,
+  applyNewsPrices,
+}) {
+  setEndOverlay(null);
+  setRoundNumber(payload.roundNumber ?? 1);
+  setPhase('trading');
+  setSecondsLeft(payload.secondsLeft ?? TRADING_SECONDS);
+  setStatusMessage('');
+  const mine = payload.portfolios?.[playerId];
+  if (mine) setPortfolio(mine);
+  if (payload.newsCard && payload.currentPrices) {
+    applyNewsPrices({
+      newsCard: payload.newsCard,
+      newsIndex: payload.newsIndex,
+      currentPrices: payload.currentPrices,
+      previousPrices: payload.previousPrices || {},
+    });
+  }
+}
+
 export default function Game() {
   const { roomCode } = useParams();
   const navigate = useNavigate();
@@ -90,16 +116,20 @@ export default function Game() {
     const socket = getSocket();
     socket.emit('joinRoom', { roomCode, playerId });
 
-    socket.on('roundStart', (payload) => {
-      setEndOverlay(null);
-      setRoundNumber(payload.roundNumber);
-      setPhase('trading');
-      setSecondsLeft(TRADING_SECONDS);
-      setStatusMessage('');
-      const mine = payload.portfolios?.[playerId];
-      if (mine) setPortfolio(mine);
-      applyNewsPrices(payload);
-    });
+    const onRound = (payload) => {
+      applyRoundPayload(payload, playerId, {
+        setEndOverlay,
+        setRoundNumber,
+        setPhase,
+        setSecondsLeft,
+        setStatusMessage,
+        setPortfolio,
+        applyNewsPrices,
+      });
+    };
+
+    socket.on('roundStart', onRound);
+    socket.on('gameSync', onRound);
 
     socket.on('newsUpdate', (payload) => {
       applyNewsPrices(payload);
@@ -128,28 +158,34 @@ export default function Game() {
       setEndOverlay({ leaderboard, winner });
     });
 
+    socket.on('gameStart', () => {
+      setStatusMessage('Game starting…');
+    });
+
     return () => {
       socket.off('roundStart');
+      socket.off('gameSync');
       socket.off('newsUpdate');
       socket.off('portfolioUpdated');
       socket.off('timerTick');
       socket.off('marketsClosing');
       socket.off('tradeError');
       socket.off('gameEnd');
+      socket.off('gameStart');
     };
   }, [navigate, playerId, roomCode, applyNewsPrices]);
 
   const tradingOpen = phase === 'trading';
 
   return (
-    <div className="min-h-svh min-h-dvh bg-slate-950 text-white flex flex-col max-w-lg mx-auto w-full lg:max-w-2xl">
+    <div className="fixed inset-0 flex flex-col bg-slate-950 text-white max-w-lg mx-auto w-full lg:max-w-2xl lg:left-1/2 lg:-translate-x-1/2">
       <NewsBanner
         headline={newsCard?.headline}
         newsIndex={newsIndex}
         totalNews={NEWS_EVENTS_PER_GAME}
       />
 
-      <header className="shrink-0 z-40 border-b border-slate-800 bg-slate-950 px-3 py-2 sm:px-4 sm:py-3">
+      <header className="shrink-0 z-40 border-b border-slate-800 bg-slate-950 px-3 py-2 sm:px-4 sm:py-3 safe-top">
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="min-w-0">
             <p className="text-[10px] text-slate-400 uppercase">
@@ -171,21 +207,32 @@ export default function Game() {
         )}
       </header>
 
-      <main className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4 pb-28 space-y-4">
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          {STOCKS.map((s) => (
-            <StockCard
-              key={s}
-              stock={s}
-              price={displayPrices[s] ?? prices[s] ?? 100}
-              previousPrice={prevPrices[s]}
-              flash={flash[s]}
-            />
-          ))}
-        </div>
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-4 pb-40 space-y-4 -webkit-overflow-scrolling-touch">
+        {phase === 'idle' && (
+          <div className="rounded-xl border border-dashed border-slate-600 bg-slate-900/50 px-4 py-10 text-center">
+            <p className="text-amber-300 font-semibold mb-2">Waiting for game to start</p>
+            <p className="text-slate-400 text-sm">
+              The admin will start when enough players have joined. Keep this screen open.
+            </p>
+          </div>
+        )}
+
+        {(tradingOpen || phase === 'closing') && (
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {STOCKS.map((s) => (
+              <StockCard
+                key={s}
+                stock={s}
+                price={displayPrices[s] ?? prices[s] ?? 100}
+                previousPrice={prevPrices[s]}
+                flash={flash[s]}
+              />
+            ))}
+          </div>
+        )}
 
         {portfolio && tradingOpen && (
-          <div className="space-y-2">
+          <div className="space-y-2 pb-4">
             {STOCKS.map((s) => (
               <TradePanel
                 key={s}
@@ -206,7 +253,7 @@ export default function Game() {
       </main>
 
       {portfolio && tradingOpen && (
-        <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-700 bg-slate-900/95 backdrop-blur px-3 py-3 safe-bottom max-w-lg mx-auto lg:max-w-2xl">
+        <footer className="shrink-0 z-40 border-t border-slate-700 bg-slate-900/95 backdrop-blur px-3 py-3 safe-bottom">
           <Portfolio
             compact
             cash={portfolio.cash}

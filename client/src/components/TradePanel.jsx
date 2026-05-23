@@ -35,33 +35,17 @@ export default function TradePanel({
           type="button"
           disabled={disabled || maxBuy < 1}
           onClick={() => onBuy(stock, 1)}
-          className="rounded-lg bg-emerald-600 py-2.5 text-xs font-bold active:scale-[0.98] disabled:bg-slate-700 disabled:text-slate-500 touch-manipulation"
+          className="rounded-lg bg-emerald-600 py-2.5 text-sm font-bold active:scale-[0.98] disabled:bg-slate-700 disabled:text-slate-500 touch-manipulation"
         >
-          Buy 1
+          Buy
         </button>
         <button
           type="button"
           disabled={disabled || held < 1}
           onClick={() => onSell(stock, 1)}
-          className="rounded-lg bg-red-600 py-2.5 text-xs font-bold active:scale-[0.98] disabled:bg-slate-700 disabled:text-slate-500 touch-manipulation"
+          className="rounded-lg bg-red-600 py-2.5 text-sm font-bold active:scale-[0.98] disabled:bg-slate-700 disabled:text-slate-500 touch-manipulation"
         >
-          Sell 1
-        </button>
-        <button
-          type="button"
-          disabled={disabled || maxBuy < 1}
-          onClick={() => onBuy(stock, maxBuy)}
-          className="rounded-lg bg-emerald-700/80 py-2 text-xs font-semibold disabled:bg-slate-700 disabled:text-slate-500 touch-manipulation"
-        >
-          Buy max
-        </button>
-        <button
-          type="button"
-          disabled={disabled || held < 1}
-          onClick={() => onSell(stock, held)}
-          className="rounded-lg bg-red-700/80 py-2 text-xs font-semibold disabled:bg-slate-700 disabled:text-slate-500 touch-manipulation"
-        >
-          Sell all
+          Sell
         </button>
       </div>
     </div>

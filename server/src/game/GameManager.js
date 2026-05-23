@@ -303,9 +303,44 @@ class GameManager {
     const game = this.getGame(code);
     if (game) {
       game.connections.set(playerId, socket.id);
+      await this.syncGameStateToPlayer(socket, code, playerId);
     }
 
     await this.emitRoomUpdated(code);
+  }
+
+  async syncGameStateToPlayer(socket, roomCode, playerId) {
+    const code = normalizeRoomCode(roomCode);
+    const game = this.getGame(code);
+    if (!game) return;
+
+    if (game.phase === 'closing') {
+      socket.emit('marketsClosing', {
+        message: 'Time up! Auto-selling any remaining holdings…',
+      });
+      return;
+    }
+
+    if (game.phase !== 'trading') return;
+
+    try {
+      const portfolios = await this.buildPortfoliosSnapshot(game);
+      const newsCard = game.newsCard;
+
+      socket.emit('gameSync', {
+        roundNumber: game.sessionRound,
+        timeLimit: TRADING_SECONDS,
+        secondsLeft: game.secondsLeft ?? TRADING_SECONDS,
+        portfolios,
+        newsIndex: game.newsIndex != null ? game.newsIndex + 1 : 1,
+        totalNews: NEWS_EVENTS_PER_GAME,
+        newsCard: newsCard ? formatNewsCard(newsCard) : null,
+        currentPrices: { ...game.prices },
+        previousPrices: game.lastPreviousPrices || initialPrices(),
+      });
+    } catch (err) {
+      console.error(`[${code}] syncGameStateToPlayer:`, err);
+    }
   }
 
   async startGameAsAdmin(roomCode) {
@@ -364,6 +399,8 @@ class GameManager {
       intervals: [],
       newsIndex: 0,
       epoch: 0,
+      secondsLeft: TRADING_SECONDS,
+      lastPreviousPrices: null,
     };
 
     this.activeGames.set(code, game);
@@ -423,6 +460,7 @@ class GameManager {
     }
 
     let secondsLeft = TRADING_SECONDS;
+    game.secondsLeft = secondsLeft;
     this.io.to(game.roomCode).emit('timerTick', { secondsLeft });
 
     const interval = setInterval(() => {
@@ -432,6 +470,7 @@ class GameManager {
         return;
       }
       secondsLeft -= 1;
+      current.secondsLeft = secondsLeft;
       if (secondsLeft >= 0) {
         this.io.to(current.roomCode).emit('timerTick', { secondsLeft });
       }
@@ -485,6 +524,7 @@ class GameManager {
     try {
       const newsCard = await this.pickNewsCard(game);
       const previousPrices = { ...game.prices };
+      game.lastPreviousPrices = previousPrices;
       game.prices = applyPriceDeltas(game.prices, newsCard.priceDeltas);
       game.newsCard = newsCard;
       game.newsIndex = newsIndex;
