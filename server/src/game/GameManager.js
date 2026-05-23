@@ -44,6 +44,8 @@ class GameManager {
     this.startLocks = new Map();
     /** @type {Map<string, Promise>} */
     this.tradeLocks = new Map();
+    /** @type {Map<string, NodeJS.Timeout>} */
+    this.standingsSyncTimers = new Map();
   }
 
   getActiveRoomCount() {
@@ -133,14 +135,56 @@ class GameManager {
     return portfolios;
   }
 
-  async emitPortfolioUpdate(roomCode) {
+  buildPlayerPortfolio(playerName, cash, portfolio, prices) {
+    const normalized = normalizePortfolio(portfolio);
+    return {
+      name: playerName,
+      cash,
+      portfolio: normalized,
+      netWorth: netWorth(cash, normalized, prices),
+    };
+  }
+
+  emitTradeConfirmed(game, playerId, playerName, tradeResult) {
+    const portfolio = this.buildPlayerPortfolio(
+      playerName,
+      tradeResult.cash,
+      tradeResult.portfolio,
+      game.prices,
+    );
+    const socketId = game.connections.get(playerId);
+    if (socketId) {
+      this.io.to(socketId).emit('tradeConfirmed', { portfolio });
+    }
+  }
+
+  scheduleStandingsSync(roomCode) {
+    const code = normalizeRoomCode(roomCode);
+    if (this.standingsSyncTimers.has(code)) return;
+
+    const timer = setTimeout(() => {
+      this.standingsSyncTimers.delete(code);
+      Promise.resolve()
+        .then(async () => {
+          await this.persistStandings(code);
+          await this.emitAdminStandings(code);
+        })
+        .catch((err) => console.error(`[${code}] standings sync:`, err));
+    }, 300);
+
+    this.standingsSyncTimers.set(code, timer);
+  }
+
+  async emitPortfolioUpdate(roomCode, { syncStandings = true } = {}) {
     const game = this.getGame(roomCode);
     if (!game || game.phase !== 'trading') return;
     try {
-      await this.persistStandings(roomCode);
       const portfolios = await this.buildPortfoliosSnapshot(game);
       this.io.to(game.roomCode).emit('portfolioUpdated', { portfolios });
-      await this.emitAdminStandings(roomCode);
+      if (syncStandings) {
+        await this.persistStandings(roomCode);
+        await this.emitAdminStandings(roomCode);
+      }
     } catch (err) {
       console.error(`[${roomCode}] portfolio update:`, err);
     }
@@ -423,6 +467,11 @@ class GameManager {
       this.clearTimers(game);
       this.activeGames.delete(code);
     }
+    const standingsTimer = this.standingsSyncTimers.get(code);
+    if (standingsTimer) {
+      clearTimeout(standingsTimer);
+      this.standingsSyncTimers.delete(code);
+    }
     try {
       await prisma.room.update({
         where: { id: roomId },
@@ -598,6 +647,7 @@ class GameManager {
 
       const rp = await prisma.roomPlayer.findFirst({
         where: { roomId: game.roomId, playerId },
+        include: { player: { select: { name: true } } },
       });
       if (!rp) return { error: 'Player not in room' };
 
@@ -622,7 +672,8 @@ class GameManager {
           data: updateData,
         });
 
-        await this.emitPortfolioUpdate(roomCode);
+        this.emitTradeConfirmed(game, playerId, rp.player.name, result);
+        this.scheduleStandingsSync(roomCode);
         return { ok: true };
       } catch (err) {
         return { error: err.message };

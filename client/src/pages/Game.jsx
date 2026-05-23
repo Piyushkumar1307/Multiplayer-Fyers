@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   STOCKS,
@@ -8,6 +8,7 @@ import {
 } from '../lib/constants';
 import { getPlayerId, isLoggedIn } from '../lib/auth';
 import { getSocket, registerSocketPlayer } from '../lib/socket';
+import { applyTrades } from '../lib/portfolio';
 import StockCard from '../components/StockCard';
 import NewsBanner from '../components/NewsBanner';
 import TradePanel from '../components/TradePanel';
@@ -30,7 +31,7 @@ function applyRoundPayload(payload, playerId, {
   setPhase,
   setSecondsLeft,
   setStatusMessage,
-  setPortfolio,
+  applyServerPortfolio,
   applyNewsPrices,
 }) {
   setEndOverlay(null);
@@ -39,7 +40,7 @@ function applyRoundPayload(payload, playerId, {
   setSecondsLeft(payload.secondsLeft ?? TRADING_SECONDS);
   setStatusMessage('');
   const mine = payload.portfolios?.[playerId];
-  if (mine) setPortfolio(mine);
+  if (mine) applyServerPortfolio(mine);
   if (payload.newsCard && payload.currentPrices) {
     applyNewsPrices({
       newsCard: payload.newsCard,
@@ -69,6 +70,20 @@ export default function Game() {
   const [statusMessage, setStatusMessage] = useState('');
   const [endOverlay, setEndOverlay] = useState(null);
 
+  const serverPortfolioRef = useRef(null);
+  const portfolioRef = useRef(null);
+
+  useEffect(() => {
+    portfolioRef.current = portfolio;
+  }, [portfolio]);
+
+  const applyServerPortfolio = useCallback((mine) => {
+    if (!mine) return;
+    serverPortfolioRef.current = mine;
+    portfolioRef.current = mine;
+    setPortfolio(mine);
+  }, []);
+
   const applyNewsPrices = useCallback((payload) => {
     const prev = payload.previousPrices || {};
     const next = payload.currentPrices || {};
@@ -90,20 +105,43 @@ export default function Game() {
     return (portfolio.cash || 0) + stockVal;
   }, [portfolio, prices]);
 
-  const handleBuy = useCallback(
-    (stock, quantity) => {
+  const handleTrade = useCallback(
+    (stock, action, quantity) => {
       setTradeError('');
-      getSocket().emit('buyStock', { roomCode, playerId, stock, quantity });
+      const current = portfolioRef.current;
+      if (!current) return;
+
+      try {
+        const result = applyTrades({
+          cash: current.cash,
+          portfolio: current.portfolio,
+          trades: [{ stock, action, quantity }],
+          prices,
+        });
+        const next = { ...current, cash: result.cash, portfolio: result.portfolio };
+        portfolioRef.current = next;
+        setPortfolio(next);
+        getSocket().emit(action === 'BUY' ? 'buyStock' : 'sellStock', {
+          roomCode,
+          playerId,
+          stock,
+          quantity,
+        });
+      } catch (err) {
+        setTradeError(err.message);
+      }
     },
-    [roomCode, playerId],
+    [prices, roomCode, playerId],
+  );
+
+  const handleBuy = useCallback(
+    (stock, quantity) => handleTrade(stock, 'BUY', quantity),
+    [handleTrade],
   );
 
   const handleSell = useCallback(
-    (stock, quantity) => {
-      setTradeError('');
-      getSocket().emit('sellStock', { roomCode, playerId, stock, quantity });
-    },
-    [roomCode, playerId],
+    (stock, quantity) => handleTrade(stock, 'SELL', quantity),
+    [handleTrade],
   );
 
   useEffect(() => {
@@ -123,7 +161,7 @@ export default function Game() {
         setPhase,
         setSecondsLeft,
         setStatusMessage,
-        setPortfolio,
+        applyServerPortfolio,
         applyNewsPrices,
       });
     };
@@ -136,8 +174,11 @@ export default function Game() {
     });
 
     socket.on('portfolioUpdated', ({ portfolios }) => {
-      const mine = portfolios?.[playerId];
-      if (mine) setPortfolio(mine);
+      applyServerPortfolio(portfolios?.[playerId]);
+    });
+
+    socket.on('tradeConfirmed', ({ portfolio }) => {
+      applyServerPortfolio(portfolio);
     });
 
     socket.on('timerTick', ({ secondsLeft: s }) => {
@@ -150,6 +191,10 @@ export default function Game() {
     });
 
     socket.on('tradeError', ({ message }) => {
+      if (serverPortfolioRef.current) {
+        portfolioRef.current = serverPortfolioRef.current;
+        setPortfolio(serverPortfolioRef.current);
+      }
       setTradeError(message);
     });
 
@@ -167,13 +212,14 @@ export default function Game() {
       socket.off('gameSync');
       socket.off('newsUpdate');
       socket.off('portfolioUpdated');
+      socket.off('tradeConfirmed');
       socket.off('timerTick');
       socket.off('marketsClosing');
       socket.off('tradeError');
       socket.off('gameEnd');
       socket.off('gameStart');
     };
-  }, [navigate, playerId, roomCode, applyNewsPrices]);
+  }, [navigate, playerId, roomCode, applyNewsPrices, applyServerPortfolio]);
 
   const tradingOpen = phase === 'trading';
 
