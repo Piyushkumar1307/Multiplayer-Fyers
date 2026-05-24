@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { prisma } = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { normalizePortfolio, emptyPortfolio } = require('../lib/portfolio');
+const { normalizePortfolio, startingPlayerState } = require('../lib/portfolio');
 const { MAX_PLAYERS } = require('../constants/stocks');
 
 const router = express.Router();
@@ -60,11 +60,15 @@ router.post('/rooms/join', requireAuth, async (req, res) => {
 
     const alreadyIn = room.players.some((p) => p.playerId === req.player.id);
     if (!alreadyIn) {
+      const starting = startingPlayerState();
       await prisma.roomPlayer.create({
         data: {
           roomId: room.id,
           playerId: req.player.id,
-          portfolio: emptyPortfolio(),
+          cash: starting.cash,
+          portfolio: starting.portfolio,
+          netWorth: starting.netWorth,
+          profitLoss: starting.profitLoss,
         },
       });
     }

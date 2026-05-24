@@ -15,7 +15,7 @@ const {
   netWorth,
   applyTrades,
   autoSellAll,
-  emptyPortfolio,
+  startingPlayerState,
 } = require('../lib/portfolio');
 const { applyPriceDeltas } = require('../lib/prices');
 const { compareByNetWorth, compareByProfitDelta } = require('../lib/standings');
@@ -205,13 +205,14 @@ class GameManager {
   }
 
   async resetRoomPlayers(roomId) {
+    const starting = startingPlayerState();
     await prisma.roomPlayer.updateMany({
       where: { roomId },
       data: {
-        cash: STARTING_CASH,
-        portfolio: emptyPortfolio(),
-        netWorth: STARTING_CASH,
-        profitLoss: 0,
+        cash: starting.cash,
+        portfolio: starting.portfolio,
+        netWorth: starting.netWorth,
+        profitLoss: starting.profitLoss,
         firstBuyAt: null,
       },
     });

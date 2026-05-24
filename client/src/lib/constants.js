@@ -8,6 +8,7 @@ export const STOCK_META = {
 };
 
 export const STARTING_CASH = 10000;
+export const STARTING_SHARES_PER_STOCK = 10;
 export const TOTAL_ROUNDS = 1;
 export const TRADING_SECONDS = 180;
 export const NEWS_EVENTS_PER_GAME = 5;

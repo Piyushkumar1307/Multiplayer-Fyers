@@ -1,7 +1,32 @@
-const { STOCKS, INITIAL_PRICE, STARTING_CASH } = require('../constants/stocks');
+const { STOCKS, INITIAL_PRICE, STARTING_CASH, STARTING_SHARES_PER_STOCK } = require('../constants/stocks');
 
 function emptyPortfolio() {
   return Object.fromEntries(STOCKS.map((s) => [s, 0]));
+}
+
+function startingPortfolio() {
+  return Object.fromEntries(STOCKS.map((s) => [s, STARTING_SHARES_PER_STOCK]));
+}
+
+function startingCashBalance(prices) {
+  const p = prices || initialPrices();
+  const stockCost = STOCKS.reduce(
+    (sum, stock) => sum + STARTING_SHARES_PER_STOCK * (p[stock] || INITIAL_PRICE),
+    0,
+  );
+  return STARTING_CASH - stockCost;
+}
+
+function startingPlayerState(prices) {
+  const portfolio = startingPortfolio();
+  const p = prices || initialPrices();
+  const cash = startingCashBalance(p);
+  return {
+    cash,
+    portfolio,
+    netWorth: netWorth(cash, portfolio, p),
+    profitLoss: 0,
+  };
 }
 
 function normalizePortfolio(portfolio) {
@@ -80,6 +105,9 @@ function autoSellAll(cash, portfolio, prices) {
 
 module.exports = {
   emptyPortfolio,
+  startingPortfolio,
+  startingCashBalance,
+  startingPlayerState,
   normalizePortfolio,
   initialPrices,
   netWorth,
