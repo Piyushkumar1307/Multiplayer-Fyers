@@ -1,60 +1,97 @@
 const { PrismaClient } = require('@prisma/client');
+const { invalidateNewsCache } = require('../src/lib/newsCache');
 
 const prisma = new PrismaClient();
 
-const NEWS_CARDS = [
-  { headline: 'Government bans fossil fuels', affectedStocks: ['GRNV', 'AERO'], priceDeltas: { GRNV: 20, AERO: -8 } },
-  { headline: 'New pandemic drug approved', affectedStocks: ['PHRX'], priceDeltas: { PHRX: 25 } },
-  { headline: 'Bank fraud scandal exposed', affectedStocks: ['NXBK'], priceDeltas: { NXBK: -30 } },
-  { headline: 'Electric aviation breakthrough', affectedStocks: ['AERO', 'GRNV'], priceDeltas: { AERO: 18, GRNV: 10 } },
-  { headline: 'Interest rates hiked sharply', affectedStocks: ['NXBK', 'PHRX'], priceDeltas: { NXBK: -15, PHRX: -10 } },
-  { headline: 'Green energy subsidy announced', affectedStocks: ['GRNV', 'AERO'], priceDeltas: { GRNV: 22, AERO: 5 } },
-  { headline: 'Pharma CEO arrested', affectedStocks: ['PHRX'], priceDeltas: { PHRX: -28 } },
-  { headline: 'Air travel hits record high', affectedStocks: ['AERO'], priceDeltas: { AERO: 15 } },
-  { headline: 'Banking sector gets bailout', affectedStocks: ['NXBK'], priceDeltas: { NXBK: 20 } },
-  { headline: 'Drug patent expires', affectedStocks: ['PHRX'], priceDeltas: { PHRX: -18 } },
-  { headline: 'Solar panel costs plummet', affectedStocks: ['GRNV'], priceDeltas: { GRNV: 16 } },
-  { headline: 'Aviation safety probe launched', affectedStocks: ['AERO'], priceDeltas: { AERO: -12 } },
-  { headline: 'Central bank cuts rates', affectedStocks: ['NXBK', 'PHRX'], priceDeltas: { NXBK: 12, PHRX: 8 } },
-  { headline: 'Vaccine trial fails', affectedStocks: ['PHRX'], priceDeltas: { PHRX: -22 } },
-  { headline: 'Hydrogen fuel cells go mainstream', affectedStocks: ['GRNV', 'AERO'], priceDeltas: { GRNV: 14, AERO: 7 } },
-  { headline: 'Major airline bankruptcy', affectedStocks: ['AERO'], priceDeltas: { AERO: -20 } },
-  { headline: 'Fintech disrupts traditional banking', affectedStocks: ['NXBK'], priceDeltas: { NXBK: -14 } },
-  { headline: 'Blockbuster merger in pharma', affectedStocks: ['PHRX'], priceDeltas: { PHRX: 19 } },
-  { headline: 'Carbon tax introduced nationwide', affectedStocks: ['GRNV', 'AERO'], priceDeltas: { GRNV: 18, AERO: -6 } },
-  { headline: 'Drone delivery approved for cities', affectedStocks: ['AERO'], priceDeltas: { AERO: 11 } },
-  { headline: 'Bank earnings beat expectations', affectedStocks: ['NXBK'], priceDeltas: { NXBK: 16 } },
-  { headline: 'Generic drugs flood the market', affectedStocks: ['PHRX'], priceDeltas: { PHRX: -15 } },
-  { headline: 'Wind farm capacity doubles', affectedStocks: ['GRNV'], priceDeltas: { GRNV: 21 } },
-  { headline: 'Fuel prices surge globally', affectedStocks: ['AERO', 'GRNV'], priceDeltas: { AERO: -9, GRNV: 6 } },
-  { headline: 'Cyberattack on major bank', affectedStocks: ['NXBK'], priceDeltas: { NXBK: -25 } },
-  { headline: 'FDA fast-tracks cancer drug', affectedStocks: ['PHRX'], priceDeltas: { PHRX: 24 } },
-  { headline: 'Space tourism tickets sell out', affectedStocks: ['AERO'], priceDeltas: { AERO: 20 } },
-  { headline: 'Coal plants shut down early', affectedStocks: ['GRNV'], priceDeltas: { GRNV: 17 } },
-  { headline: 'Mortgage defaults spike', affectedStocks: ['NXBK'], priceDeltas: { NXBK: -18 } },
-  { headline: 'Opioid lawsuit settlement', affectedStocks: ['PHRX'], priceDeltas: { PHRX: -12 } },
-  { headline: 'Supersonic jet certified', affectedStocks: ['AERO', 'NXBK'], priceDeltas: { AERO: 14, NXBK: 4 } },
-  { headline: 'Battery storage breakthrough', affectedStocks: ['GRNV', 'PHRX'], priceDeltas: { GRNV: 13, PHRX: 5 } },
-  { headline: 'Bank CEO resigns amid probe', affectedStocks: ['NXBK'], priceDeltas: { NXBK: -11 } },
-  { headline: 'Bird flu vaccine approved', affectedStocks: ['PHRX'], priceDeltas: { PHRX: 17 } },
-  { headline: 'Airport expansion approved', affectedStocks: ['AERO'], priceDeltas: { AERO: 9 } },
-  { headline: 'EV charging network nationalized', affectedStocks: ['GRNV'], priceDeltas: { GRNV: 19 } },
-  { headline: 'Credit rating downgrade', affectedStocks: ['NXBK'], priceDeltas: { NXBK: -16 } },
-  { headline: 'Clinical trial shows miracle cure', affectedStocks: ['PHRX'], priceDeltas: { PHRX: 28 } },
-  { headline: 'Pilot strike grounds flights', affectedStocks: ['AERO'], priceDeltas: { AERO: -17 } },
-  { headline: 'Green bonds oversubscribed', affectedStocks: ['GRNV', 'NXBK'], priceDeltas: { GRNV: 12, NXBK: 8 } },
+/** Multi-stock headlines (pool for 5 per round) */
+const MULTI_STOCK_NEWS = [
+  {
+    headline:
+      'Aviation fuel prices expected to rise further. Airlines under pressure as costs increase.',
+    affectedStocks: ['AERO', 'OILF'],
+    priceDeltas: { AERO: -16, OILF: 20 },
+  },
+  {
+    headline:
+      'Government announces major green energy push. Plans to reduce dependency on thermal power and fossil fuels.',
+    affectedStocks: ['GRNV', 'OILF', 'AERO'],
+    priceDeltas: { GRNV: 22, OILF: -14, AERO: -6 },
+  },
+  {
+    headline:
+      'Major policy change: Government increases defense budget by 18%. Focus on indigenous manufacturing.',
+    affectedStocks: ['AERO', 'OILF', 'NXBK'],
+    priceDeltas: { AERO: 18, OILF: 10, NXBK: 6 },
+  },
+  {
+    headline:
+      'Crude oil prices surge 12% due to geopolitical tensions. Fuel costs rise sharply.',
+    affectedStocks: ['OILF', 'AERO', 'GRNV'],
+    priceDeltas: { OILF: 24, AERO: -15, GRNV: -8 },
+  },
+  {
+    headline:
+      'Government announces 40% subsidy and tax benefits for Electric Vehicles. Major boost expected for EV manufacturers.',
+    affectedStocks: ['GRNV', 'AERO', 'OILF'],
+    priceDeltas: { GRNV: 20, AERO: 12, OILF: -10 },
+  },
+  {
+    headline: 'Fuel costs squeeze airlines while oil producers rally on supply fears.',
+    affectedStocks: ['AERO', 'OILF', 'NXBK'],
+    priceDeltas: { AERO: -12, OILF: 16, NXBK: -5 },
+  },
 ];
 
-async function main() {
-  const count = await prisma.newsCard.count();
-  if (count >= NEWS_CARDS.length) {
-    console.log(`Skipping seed: ${count} news cards already exist.`);
-    return;
-  }
+/** Single-stock headlines (pool for 3 per round) */
+const SINGLE_STOCK_NEWS = [
+  {
+    headline:
+      'AgriHarvest Limited hit by unseasonal rains and pest attacks in major producing states. Crop damage reported.',
+    affectedStocks: ['AGRI'],
+    priceDeltas: { AGRI: -26 },
+  },
+  {
+    headline:
+      'RetailHub Limited reports record quarterly sales due to festive season + successful expansion into Tier-2 cities.',
+    affectedStocks: ['NXBK'],
+    priceDeltas: { NXBK: 22 },
+  },
+  {
+    headline:
+      'TechNova Limited faces data privacy probe. Regulators may impose heavy fines.',
+    affectedStocks: ['NXBK'],
+    priceDeltas: { NXBK: -20 },
+  },
+  {
+    headline:
+      'SolarVolt Limited signs massive 5-year agreement with state governments for 2GW solar projects.',
+    affectedStocks: ['GRNV'],
+    priceDeltas: { GRNV: 24 },
+  },
+  {
+    headline:
+      'Breakthrough: PharmaCore Limited announces successful Phase-3 trials of new cancer drug. Expected to get fast-track approval.',
+    affectedStocks: ['PHRX'],
+    priceDeltas: { PHRX: 28 },
+  },
+  {
+    headline: 'OilForge Limited wins long-term refinery supply contract with national oil consortium.',
+    affectedStocks: ['OILF'],
+    priceDeltas: { OILF: 18 },
+  },
+];
 
+const NEWS_CARDS = [...MULTI_STOCK_NEWS, ...SINGLE_STOCK_NEWS];
+
+async function main() {
+  await prisma.trade.deleteMany();
+  await prisma.gameRound.deleteMany();
   await prisma.newsCard.deleteMany();
   await prisma.newsCard.createMany({ data: NEWS_CARDS });
-  console.log(`Seeded ${NEWS_CARDS.length} news cards.`);
+  invalidateNewsCache();
+  console.log(
+    `Seeded ${NEWS_CARDS.length} news cards (${MULTI_STOCK_NEWS.length} multi-stock, ${SINGLE_STOCK_NEWS.length} single-stock).`,
+  );
 }
 
 main()

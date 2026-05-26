@@ -53,5 +53,11 @@ body {
 }
 
 .animate-news-scroll {
-  animation: news-scroll 28s linear infinite;
+  animation: news-scroll 40s linear infinite;
+}
+
+@media (min-width: 640px) {
+  .animate-news-scroll {
+    animation-duration: 48s;
+  }
 }

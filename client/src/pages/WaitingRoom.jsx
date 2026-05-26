@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getRoom } from '../lib/api';
 import { getPlayerId, isLoggedIn } from '../lib/auth';
-import { getSocket, registerSocketPlayer } from '../lib/socket';
+import { getSocket } from '../lib/socket';
+import { useRoomSocket } from '../hooks/useRoomSocket';
 import PlayerList from '../components/PlayerList';
 import { MAX_PLAYERS, MIN_PLAYERS_TO_START } from '../lib/constants';
 import { formatProfit } from '../lib/format';
@@ -17,6 +18,7 @@ export default function WaitingRoom() {
   const [error, setError] = useState('');
   const playerId = getPlayerId();
   const isClosed = roomStatus === 'ENDED';
+  useRoomSocket(code, playerId, Boolean(code && playerId));
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -24,7 +26,6 @@ export default function WaitingRoom() {
       return;
     }
 
-    registerSocketPlayer(playerId);
     const socket = getSocket();
 
     async function load() {
@@ -40,27 +41,31 @@ export default function WaitingRoom() {
     }
 
     load();
-    socket.emit('joinRoom', { roomCode: code, playerId });
 
-    socket.on('roomUpdated', () => load());
+    const onRoomUpdated = () => load();
 
-    socket.on('gameStart', ({ roomCode }) => {
+    const onGameStart = ({ roomCode }) => {
       navigate(`/game/${roomCode || code}`);
-    });
+    };
 
-    socket.on('returnToLobby', () => {
+    const onReturnToLobby = () => {
       navigate('/lobby', { replace: true });
-    });
+    };
 
-    socket.on('roomClosed', () => {
+    const onRoomClosed = () => {
       navigate('/lobby', { replace: true });
-    });
+    };
+
+    socket.on('roomUpdated', onRoomUpdated);
+    socket.on('gameStart', onGameStart);
+    socket.on('returnToLobby', onReturnToLobby);
+    socket.on('roomClosed', onRoomClosed);
 
     return () => {
-      socket.off('roomUpdated');
-      socket.off('gameStart');
-      socket.off('returnToLobby');
-      socket.off('roomClosed');
+      socket.off('roomUpdated', onRoomUpdated);
+      socket.off('gameStart', onGameStart);
+      socket.off('returnToLobby', onReturnToLobby);
+      socket.off('roomClosed', onRoomClosed);
     };
   }, [code, navigate, playerId]);
 

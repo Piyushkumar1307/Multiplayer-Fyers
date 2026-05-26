@@ -4,7 +4,10 @@ const {
   STOCKS,
   TOTAL_ROUNDS,
   TRADING_SECONDS,
+  INSTRUCTION_SECONDS,
   NEWS_EVENTS_PER_GAME,
+  NEWS_MULTI_PER_GAME,
+  NEWS_SINGLE_PER_GAME,
   MAX_PLAYERS,
   MIN_PLAYERS_TO_START,
   STARTING_CASH,
@@ -31,6 +34,20 @@ function formatNewsCard(newsCard) {
 
 function normalizeRoomCode(roomCode) {
   return String(roomCode || '').trim().toUpperCase();
+}
+
+function shuffleArray(items) {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function isMultiStockNews(card) {
+  const stocks = card.affectedStocks;
+  return Array.isArray(stocks) && stocks.length > 1;
 }
 
 class GameManager {
@@ -362,6 +379,19 @@ class GameManager {
       return;
     }
 
+    if (game.phase === 'ended') return;
+
+    if (game.phase === 'instructions') {
+      const startedAt = game.instructionStartedAt || Date.now();
+      const elapsed = Date.now() - startedAt;
+      const remainingMs = Math.max(0, INSTRUCTION_SECONDS * 1000 - elapsed);
+      socket.emit('gameInstructions', {
+        seconds: Math.max(1, Math.ceil(remainingMs / 1000)),
+        roundNumber: game.sessionRound,
+      });
+      return;
+    }
+
     if (game.phase !== 'trading') return;
 
     try {
@@ -483,21 +513,63 @@ class GameManager {
     }
   }
 
-  async pickNewsCard(game) {
+  async prepareNewsQueue(game) {
     const all = await getNewsCards();
     if (!all.length) {
       throw new Error('No news cards in database. Run npm run db:seed');
     }
-    const available = all.filter((c) => !game.usedNewsIds.has(c.id));
-    const pool = available.length > 0 ? available : all;
-    const card = pool[Math.floor(Math.random() * pool.length)];
-    game.usedNewsIds.add(card.id);
+
+    const multiPool = all.filter(isMultiStockNews);
+    const singlePool = all.filter((c) => !isMultiStockNews(c));
+
+    if (multiPool.length < NEWS_MULTI_PER_GAME || singlePool.length < NEWS_SINGLE_PER_GAME) {
+      throw new Error(
+        `Need at least ${NEWS_MULTI_PER_GAME} multi-stock and ${NEWS_SINGLE_PER_GAME} single-stock news cards. Run npm run db:seed`,
+      );
+    }
+
+    const pickedMulti = shuffleArray(multiPool).slice(0, NEWS_MULTI_PER_GAME);
+    const pickedSingle = shuffleArray(singlePool).slice(0, NEWS_SINGLE_PER_GAME);
+    game.newsQueue = shuffleArray([...pickedMulti, ...pickedSingle]);
+
+    for (const card of game.newsQueue) {
+      game.usedNewsIds.add(card.id);
+    }
+  }
+
+  async pickNewsCard(game) {
+    if (!game.newsQueue?.length) {
+      await this.prepareNewsQueue(game);
+    }
+    const card = game.newsQueue.shift();
+    if (!card) {
+      throw new Error('News queue exhausted for this round');
+    }
     return card;
   }
 
-  scheduleNewsAndTimer(roomCode) {
+  beginTrading(roomCode) {
+    const game = this.getGame(roomCode);
+    if (!game || game.phase !== 'instructions') return;
+    game.phase = 'trading';
+    game.instructionStartedAt = null;
+    void this.scheduleNewsAndTimer(roomCode);
+  }
+
+  async scheduleNewsAndTimer(roomCode) {
     const game = this.getGame(roomCode);
     if (!game) return;
+
+    game.newsQueue = [];
+    try {
+      await this.prepareNewsQueue(game);
+    } catch (err) {
+      console.error(`[${roomCode}] prepareNewsQueue:`, err);
+      this.io.to(game.roomCode).emit('error', {
+        message: 'Failed to load news. Run npm run db:seed on the server.',
+      });
+      return;
+    }
 
     const stepMs = Math.floor((TRADING_SECONDS * 1000) / NEWS_EVENTS_PER_GAME);
 
@@ -575,11 +647,6 @@ class GameManager {
       game.newsCard = newsCard;
       game.newsIndex = newsIndex;
 
-      await prisma.gameRound.update({
-        where: { id: game.roundId },
-        data: { stockPrices: game.prices, newsCardId: newsCard.id },
-      });
-
       const newsPayload = {
         newsIndex: newsIndex + 1,
         totalNews: NEWS_EVENTS_PER_GAME,
@@ -587,6 +654,15 @@ class GameManager {
         currentPrices: { ...game.prices },
         previousPrices,
       };
+
+      try {
+        await prisma.gameRound.update({
+          where: { id: game.roundId },
+          data: { stockPrices: game.prices, newsCardId: newsCard.id },
+        });
+      } catch (dbErr) {
+        console.error(`[${roomCode}] publishNews db:`, dbErr);
+      }
 
       if (newsIndex === 0) {
         const portfolios = await this.buildPortfoliosSnapshot(game);
@@ -600,8 +676,7 @@ class GameManager {
         this.io.to(game.roomCode).emit('newsUpdate', newsPayload);
       }
 
-      await this.persistStandings(roomCode);
-      await this.emitPortfolioUpdate(game.roomCode);
+      this.scheduleStandingsSync(roomCode);
     } catch (err) {
       console.error(`[${roomCode}] publishNews:`, err);
     }
@@ -619,13 +694,25 @@ class GameManager {
 
     this.bumpEpoch(game);
     this.clearTimers(game);
-    game.phase = 'trading';
+    game.phase = 'instructions';
+    game.instructionStartedAt = Date.now();
     game.prices = initialPrices();
     game.roundId = null;
     game.roundInitPromise = null;
+    game.newsQueue = [];
 
     await this.ensureGameRound(game);
-    this.scheduleNewsAndTimer(roomCode);
+
+    this.io.to(game.roomCode).emit('gameInstructions', {
+      seconds: INSTRUCTION_SECONDS,
+      roundNumber: game.sessionRound,
+    });
+
+    this.scheduleTimer(
+      game,
+      () => this.beginTrading(roomCode),
+      INSTRUCTION_SECONDS * 1000,
+    );
   }
 
   async executeStockTrade(roomCode, playerId, stock, action, quantity = 1) {
@@ -811,6 +898,13 @@ class GameManager {
   }
 
   handleDisconnect(playerId) {
+    const code = this.playerRoom.get(playerId);
+    if (code) {
+      const game = this.getGame(code);
+      if (game?.connections.has(playerId)) {
+        game.connections.delete(playerId);
+      }
+    }
     this.playerRoom.delete(playerId);
   }
 

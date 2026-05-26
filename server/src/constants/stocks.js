@@ -1,18 +1,23 @@
-const STOCKS = ['AERO', 'GRNV', 'NXBK', 'PHRX'];
+const STOCKS = ['AERO', 'GRNV', 'NXBK', 'PHRX', 'OILF', 'AGRI'];
 
 const STOCK_META = {
   AERO: { name: 'AeroCore', ticker: 'AERO' },
   GRNV: { name: 'GreenVolt', ticker: 'GRNV' },
   NXBK: { name: 'NexBank', ticker: 'NXBK' },
-  PHRX: { name: 'PharmaX', ticker: 'PHRX' },
+  PHRX: { name: 'PharmaCore', ticker: 'PHRX' },
+  OILF: { name: 'OilForge', ticker: 'OILF' },
+  AGRI: { name: 'AgriHarvest', ticker: 'AGRI' },
 };
 
 const INITIAL_PRICE = 100;
 const STARTING_CASH = 10000;
 const STARTING_SHARES_PER_STOCK = 10;
 const TOTAL_ROUNDS = 1;
-const TRADING_SECONDS = 180;
-const NEWS_EVENTS_PER_GAME = 5;
+const TRADING_SECONDS = 120;
+const INSTRUCTION_SECONDS = 8;
+const NEWS_EVENTS_PER_GAME = 8;
+const NEWS_MULTI_PER_GAME = 5;
+const NEWS_SINGLE_PER_GAME = 3;
 const MAX_PLAYERS = 20;
 const MIN_PLAYERS_TO_START = 5;
 
@@ -24,7 +29,10 @@ module.exports = {
   STARTING_SHARES_PER_STOCK,
   TOTAL_ROUNDS,
   TRADING_SECONDS,
+  INSTRUCTION_SECONDS,
   NEWS_EVENTS_PER_GAME,
+  NEWS_MULTI_PER_GAME,
+  NEWS_SINGLE_PER_GAME,
   MAX_PLAYERS,
   MIN_PLAYERS_TO_START,
 };

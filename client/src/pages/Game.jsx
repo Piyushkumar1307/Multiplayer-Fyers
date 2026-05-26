@@ -4,16 +4,20 @@ import {
   STOCKS,
   TOTAL_ROUNDS,
   TRADING_SECONDS,
+  INSTRUCTION_SECONDS,
   NEWS_EVENTS_PER_GAME,
 } from '../lib/constants';
 import { getPlayerId, isLoggedIn } from '../lib/auth';
-import { getSocket, registerSocketPlayer } from '../lib/socket';
+import { getSocket } from '../lib/socket';
 import { applyTrades } from '../lib/portfolio';
+import { useRoomSocket } from '../hooks/useRoomSocket';
+import { useSocketStatus } from '../hooks/useSocketStatus';
 import StockCard from '../components/StockCard';
 import NewsBanner from '../components/NewsBanner';
 import TradePanel from '../components/TradePanel';
 import Portfolio from '../components/Portfolio';
 import Timer from '../components/Timer';
+import GameInstructions from '../components/GameInstructions';
 import { formatProfit } from '../lib/format';
 
 function priceFlashes(previousPrices, currentPrices) {
@@ -55,6 +59,8 @@ export default function Game() {
   const { roomCode } = useParams();
   const navigate = useNavigate();
   const playerId = getPlayerId();
+  const socketConnected = useSocketStatus();
+  useRoomSocket(roomCode, playerId, Boolean(roomCode && playerId));
 
   const [phase, setPhase] = useState('idle');
   const [roundNumber, setRoundNumber] = useState(0);
@@ -69,6 +75,7 @@ export default function Game() {
   const [tradeError, setTradeError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [endOverlay, setEndOverlay] = useState(null);
+  const [instructionSecondsLeft, setInstructionSecondsLeft] = useState(INSTRUCTION_SECONDS);
 
   const serverPortfolioRef = useRef(null);
   const portfolioRef = useRef(null);
@@ -76,6 +83,14 @@ export default function Game() {
   useEffect(() => {
     portfolioRef.current = portfolio;
   }, [portfolio]);
+
+  useEffect(() => {
+    if (phase !== 'instructions') return undefined;
+    const id = window.setInterval(() => {
+      setInstructionSecondsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [phase]);
 
   const applyServerPortfolio = useCallback((mine) => {
     if (!mine) return;
@@ -150,9 +165,7 @@ export default function Game() {
       return;
     }
 
-    registerSocketPlayer(playerId);
     const socket = getSocket();
-    socket.emit('joinRoom', { roomCode, playerId });
 
     const onRound = (payload) => {
       applyRoundPayload(payload, playerId, {
@@ -166,61 +179,80 @@ export default function Game() {
       });
     };
 
-    socket.on('roundStart', onRound);
-    socket.on('gameSync', onRound);
-
-    socket.on('newsUpdate', (payload) => {
+    const onNewsUpdate = (payload) => {
       applyNewsPrices(payload);
-    });
+    };
 
-    socket.on('portfolioUpdated', ({ portfolios }) => {
+    const onPortfolioUpdated = ({ portfolios }) => {
       applyServerPortfolio(portfolios?.[playerId]);
-    });
+    };
 
-    socket.on('tradeConfirmed', ({ portfolio }) => {
+    const onTradeConfirmed = ({ portfolio }) => {
       applyServerPortfolio(portfolio);
-    });
+    };
 
-    socket.on('timerTick', ({ secondsLeft: s }) => {
+    const onTimerTick = ({ secondsLeft: s }) => {
       setSecondsLeft(s);
-    });
+    };
 
-    socket.on('marketsClosing', ({ message }) => {
+    const onMarketsClosing = ({ message }) => {
       setPhase('closing');
       setStatusMessage(message);
-    });
+    };
 
-    socket.on('tradeError', ({ message }) => {
+    const onTradeError = ({ message }) => {
       if (serverPortfolioRef.current) {
         portfolioRef.current = serverPortfolioRef.current;
         setPortfolio(serverPortfolioRef.current);
       }
       setTradeError(message);
-    });
+    };
 
-    socket.on('gameEnd', ({ leaderboard, winner }) => {
+    const onGameEnd = ({ leaderboard, winner }) => {
       setPhase('ended');
       setEndOverlay({ leaderboard, winner });
-    });
+    };
 
-    socket.on('gameStart', () => {
-      setStatusMessage('Game starting…');
-    });
+    const onGameStart = () => {
+      setStatusMessage('');
+    };
+
+    const onGameInstructions = ({ seconds, roundNumber: rn }) => {
+      setEndOverlay(null);
+      setPhase('instructions');
+      setRoundNumber(rn ?? 1);
+      setInstructionSecondsLeft(seconds ?? INSTRUCTION_SECONDS);
+      setStatusMessage('');
+    };
+
+    socket.on('roundStart', onRound);
+    socket.on('gameSync', onRound);
+    socket.on('newsUpdate', onNewsUpdate);
+    socket.on('portfolioUpdated', onPortfolioUpdated);
+    socket.on('tradeConfirmed', onTradeConfirmed);
+    socket.on('timerTick', onTimerTick);
+    socket.on('marketsClosing', onMarketsClosing);
+    socket.on('tradeError', onTradeError);
+    socket.on('gameEnd', onGameEnd);
+    socket.on('gameStart', onGameStart);
+    socket.on('gameInstructions', onGameInstructions);
 
     return () => {
-      socket.off('roundStart');
-      socket.off('gameSync');
-      socket.off('newsUpdate');
-      socket.off('portfolioUpdated');
-      socket.off('tradeConfirmed');
-      socket.off('timerTick');
-      socket.off('marketsClosing');
-      socket.off('tradeError');
-      socket.off('gameEnd');
-      socket.off('gameStart');
+      socket.off('roundStart', onRound);
+      socket.off('gameSync', onRound);
+      socket.off('newsUpdate', onNewsUpdate);
+      socket.off('portfolioUpdated', onPortfolioUpdated);
+      socket.off('tradeConfirmed', onTradeConfirmed);
+      socket.off('timerTick', onTimerTick);
+      socket.off('marketsClosing', onMarketsClosing);
+      socket.off('tradeError', onTradeError);
+      socket.off('gameEnd', onGameEnd);
+      socket.off('gameStart', onGameStart);
+      socket.off('gameInstructions', onGameInstructions);
     };
   }, [navigate, playerId, roomCode, applyNewsPrices, applyServerPortfolio]);
 
+  const showInstructions = phase === 'instructions';
   const tradingOpen = phase === 'trading';
 
   return (
@@ -251,6 +283,11 @@ export default function Game() {
         {tradeError && (
           <p className="mt-1 text-center text-red-400 text-xs">{tradeError}</p>
         )}
+        {!socketConnected && tradingOpen && (
+          <p className="mt-2 text-center text-amber-300 text-xs animate-pulse">
+            Reconnecting… keep this tab open
+          </p>
+        )}
       </header>
 
       <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-4 pb-40 space-y-4 -webkit-overflow-scrolling-touch">
@@ -264,7 +301,7 @@ export default function Game() {
         )}
 
         {(tradingOpen || phase === 'closing') && (
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
             {STOCKS.map((s) => (
               <StockCard
                 key={s}
@@ -308,6 +345,13 @@ export default function Game() {
             netWorth={netWorth}
           />
         </footer>
+      )}
+
+      {showInstructions && (
+        <GameInstructions
+          secondsLeft={instructionSecondsLeft}
+          roundNumber={roundNumber || 1}
+        />
       )}
 
       {endOverlay && (
