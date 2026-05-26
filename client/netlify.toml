@@ -1,6 +1,14 @@
+# Legacy: player-only deploy (base directory = client).
+# For player + admin on one site, use /netlify.toml at repo root instead.
+
 [build]
   publish = "dist"
   command = "npm run build"
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
+  status = 200
 
 [[redirects]]
   from = "/*"

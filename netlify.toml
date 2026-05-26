@@ -1,0 +1,21 @@
+# Single Netlify site: player at / , admin at /admin/
+# Connect repo root in Netlify (not client/ or admin/ alone).
+
+[build]
+  publish = "client/dist"
+  command = "npm run build:web"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Admin SPA (must be before the catch-all)
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
+  status = 200
+
+# Player SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

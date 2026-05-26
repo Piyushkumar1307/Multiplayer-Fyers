@@ -1,0 +1,9 @@
+{
+  "name": "multiplayer-fyers",
+  "private": true,
+  "description": "Combined Netlify build for player (/) + admin (/admin/)",
+  "scripts": {
+    "build:web": "npm ci --prefix client && npm run build --prefix client && npm ci --prefix admin && npm run build --prefix admin && node scripts/merge-netlify-dist.mjs",
+    "build:web:local": "npm run build --prefix client && npm run build --prefix admin && node scripts/merge-netlify-dist.mjs"
+  }
+}

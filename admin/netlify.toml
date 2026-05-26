@@ -1,3 +1,6 @@
+# Legacy: admin-only deploy (base directory = admin).
+# For /admin/ subpath on the player site, use /netlify.toml at repo root.
+
 [build]
   publish = "dist"
   command = "npm run build"

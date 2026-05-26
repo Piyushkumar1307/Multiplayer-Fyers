@@ -5,8 +5,8 @@ Browser-based multiplayer stock trading simulator (fictional stocks, virtual ₹
 ## Structure
 
 ```
-/client   → Player app (React + Vite) — Netlify
-/admin    → Admin dashboard (React + Vite) — Netlify
+/client   → Player app (React + Vite) — served at /
+/admin    → Admin dashboard (React + Vite) — served at /admin/
 /server   → API + Socket.io + game engine — Render
 ```
 
@@ -42,7 +42,7 @@ cp admin/.env.example admin/.env
 cd admin && npm install && npm run dev
 ```
 
-**http://localhost:5174** — login with `ADMIN_SECRET` from `server/.env`
+**http://localhost:5174/admin/** — login with `ADMIN_SECRET` from `server/.env`
 
 ### Flow
 
@@ -68,8 +68,8 @@ cd admin && npm install && npm run dev
 | `DATABASE_URL` | Neon PostgreSQL URL |
 | `SESSION_SECRET` | long random string |
 | `ADMIN_SECRET` | admin login password |
-| `CLIENT_URL` | `https://your-player.netlify.app` |
-| `ADMIN_URL` | `https://your-admin.netlify.app` |
+| `CLIENT_URL` | `https://your-site.netlify.app` (same URL if using subpaths) |
+| `ADMIN_URL` | `https://your-site.netlify.app` (or separate admin site URL) |
 
 No trailing slashes on URLs. Use `ALLOWED_ORIGINS` for extra Netlify preview URLs (comma-separated).
 
@@ -77,36 +77,45 @@ Health check: `GET /api/health`
 
 Or use the included `render.yaml` blueprint.
 
-### Netlify (player app)
+### Netlify (player + admin on one site) — recommended
 
-**Option A — Git connect**
+Deploy from the **repository root** (not `client/` or `admin/` alone).
 
-- Base directory: `client`
-- Build: `npm run build`
-- Publish: `dist`
-- Env (build time): `VITE_API_URL`, `VITE_SOCKET_URL` → your Render URL
+| Setting | Value |
+|---------|--------|
+| Base directory | *(leave empty — repo root)* |
+| Build command | `npm run build:web` |
+| Publish directory | `client/dist` |
 
-**Option B — Drag & drop**
+**URLs after deploy**
+
+- Player: `https://your-site.netlify.app/`
+- Admin: `https://your-site.netlify.app/admin/`
+
+**Netlify build env** (Site settings → Environment variables):
+
+| Key | Value |
+|-----|--------|
+| `VITE_API_URL` | Your Render API URL |
+| `VITE_SOCKET_URL` | Same Render URL |
+
+Vite picks these up for **both** client and admin builds.
+
+**Local combined build (test before deploy):**
 
 ```bash
-cd client
-# set VITE_* in .env first
-npm run build
-# upload client/dist to Netlify Drop
+# optional: client/.env.production and admin/.env.production with VITE_*
+npm run build:web:local
+npx serve client/dist
+# open http://localhost:3000/ and http://localhost:3000/admin/
 ```
 
-`client/netlify.toml` and `client/public/_redirects` handle SPA routing.
+Root `netlify.toml` handles SPA redirects for `/` and `/admin/*`.
 
-### Netlify (admin app)
+### Netlify (legacy — separate sites)
 
-Same as player, but base directory **`admin`**.
-
-```bash
-cd admin
-# set VITE_API_URL and VITE_SOCKET_URL to Render URL
-npm run build
-# upload admin/dist
-```
+- Player only: base directory `client`, publish `dist`
+- Admin only: base directory `admin`, publish `dist`
 
 ---
 
@@ -114,13 +123,11 @@ npm run build
 
 | Where | Variable | Points to |
 |-------|----------|-----------|
-| Render | `CLIENT_URL` | Player Netlify URL |
-| Render | `ADMIN_URL` | Admin Netlify URL |
+| Render | `CLIENT_URL` | Netlify site URL (no trailing slash) |
+| Render | `ADMIN_URL` | Same URL if using `/admin/` subpath |
 | Render | `ADMIN_SECRET` | Admin password |
-| Netlify (client) | `VITE_API_URL` | Render URL |
-| Netlify (client) | `VITE_SOCKET_URL` | Render URL |
-| Netlify (admin) | `VITE_API_URL` | Render URL |
-| Netlify (admin) | `VITE_SOCKET_URL` | Render URL |
+| Netlify | `VITE_API_URL` | Render URL (build time, both apps) |
+| Netlify | `VITE_SOCKET_URL` | Render URL (build time, both apps) |
 
 After changing Render env vars → **Manual Deploy**.  
 After changing Netlify env vars → **Rebuild** (Vite bakes env at build time).
