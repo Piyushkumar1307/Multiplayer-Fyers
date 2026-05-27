@@ -12,8 +12,8 @@ const TICKER_LIST = STOCKS.map((s) => STOCK_META[s].ticker).join(', ');
 
 export default function InstructionContent() {
   return (
-    <ul className="space-y-4 text-sm sm:text-base text-slate-300">
-      <li className="flex gap-3">
+    <ul className="space-y-4 text-sm sm:text-base text-slate-300 mx-auto max-w-md">
+      <li className="flex gap-2 items-start">
         <span className="text-emerald-400 font-bold shrink-0">1.</span>
         <span>
           You start with <strong className="text-white">{formatUnits(STARTING_CASH)}</strong> cash
@@ -21,7 +21,7 @@ export default function InstructionContent() {
           stock ({TICKER_LIST}).
         </span>
       </li>
-      <li className="flex gap-3">
+      <li className="flex gap-2 items-start">
         <span className="text-emerald-400 font-bold shrink-0">2.</span>
         <span>
           Tap <strong className="text-emerald-400">Buy</strong> or{' '}
@@ -29,7 +29,7 @@ export default function InstructionContent() {
           price.
         </span>
       </li>
-      <li className="flex gap-3">
+      <li className="flex gap-2 items-start">
         <span className="text-amber-400 font-bold shrink-0">3.</span>
         <span>
           <strong className="text-amber-200">{NEWS_EVENTS_PER_GAME} headlines</strong> appear at the
@@ -38,7 +38,7 @@ export default function InstructionContent() {
           <strong className="text-red-400">down</strong> right away.
         </span>
       </li>
-      <li className="flex gap-3">
+      <li className="flex gap-2 items-start">
         <span className="text-indigo-400 font-bold shrink-0">4.</span>
         <span>
           You have <strong className="text-white">{TRADING_SECONDS}s</strong> to grow profit.

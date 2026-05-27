@@ -42,10 +42,10 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-svh min-h-dvh flex items-center justify-center bg-gradient-to-b from-slate-950 to-indigo-950 px-4 py-6 safe-top safe-bottom">
+    <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-slate-950 to-indigo-950 px-4 py-6 safe-bottom">
       <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900/90 p-6 sm:p-8 shadow-xl">
-        <h1 className="text-2xl font-bold text-center text-white mb-1">
-          Stock Market Simulator
+        <h1 className="text-xl sm:text-2xl font-bold text-center text-white mb-1 leading-snug">
+          BornToTrade Challenge
         </h1>
         <p className="text-center text-slate-400 text-sm mb-8">
           New session — enter your details to join

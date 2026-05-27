@@ -253,14 +253,14 @@ export default function Game() {
   const tradingOpen = phase === 'trading';
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-slate-950 text-white max-w-lg mx-auto w-full lg:max-w-2xl lg:left-1/2 lg:-translate-x-1/2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-950 text-white w-full">
       <NewsBanner
         headline={newsCard?.headline}
         newsIndex={newsIndex}
         totalNews={NEWS_EVENTS_PER_GAME}
       />
 
-      <header className="shrink-0 z-40 border-b border-slate-800 bg-slate-950 px-3 py-2 sm:px-4 sm:py-3 safe-top">
+      <header className="shrink-0 z-40 border-b border-slate-800 bg-slate-950 px-3 py-2 sm:px-4 sm:py-3">
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="min-w-0">
             <p className="text-[10px] text-slate-400 uppercase">
@@ -287,7 +287,7 @@ export default function Game() {
         )}
       </header>
 
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 py-3 sm:px-4 pb-40 space-y-4 -webkit-overflow-scrolling-touch">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y px-3 py-3 sm:px-4 pb-40 space-y-4 [webkit-overflow-scrolling:touch]">
         {phase === 'idle' && (
           <div className="rounded-xl border border-dashed border-slate-600 bg-slate-900/50 px-4 py-10 text-center">
             <p className="text-amber-300 font-semibold mb-2">Waiting for game to start</p>

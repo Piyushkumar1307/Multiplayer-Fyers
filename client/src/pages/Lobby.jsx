@@ -65,14 +65,14 @@ export default function Lobby() {
 
   if (!sessionReady) {
     return (
-      <div className="min-h-svh min-h-dvh flex items-center justify-center bg-slate-950 text-slate-400">
+      <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-400">
         Checking session…
       </div>
     );
   }
 
   return (
-    <div className="min-h-svh min-h-dvh flex flex-col bg-slate-950 px-4 py-6 safe-top safe-bottom max-w-lg mx-auto w-full">
+    <div className="flex-1 flex flex-col bg-slate-950 px-4 py-6 safe-bottom">
       <header className="text-center mb-8 shrink-0">
         <p className="text-slate-400 text-sm">Welcome, {getPlayerName() || 'Trader'}</p>
         <h1 className="text-2xl font-bold text-white mt-1">Join Game</h1>

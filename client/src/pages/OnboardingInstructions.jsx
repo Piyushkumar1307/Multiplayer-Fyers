@@ -11,34 +11,27 @@ export default function OnboardingInstructions() {
   }, []);
 
   return (
-    <div className="min-h-svh min-h-dvh flex flex-col bg-black text-white max-w-lg mx-auto w-full lg:max-w-2xl">
-      <header className="shrink-0 border-b border-zinc-800 bg-zinc-950 px-4 py-4 safe-top text-center">
-        <img
-          src="/fyers-logo.png"
-          alt="FYERS"
-          className="h-8 mx-auto object-contain mb-3"
-          draggable={false}
-        />
-        <p className="text-xs uppercase tracking-widest text-[#FFE500]">Born to Trade Challenge</p>
-        <h1 className="text-xl font-bold text-white mt-1">How to play</h1>
-      </header>
+    <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-slate-950 to-indigo-950 px-4 py-6 safe-bottom min-h-0">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900/90 p-6 sm:p-8 shadow-xl flex flex-col max-h-full min-h-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-center text-white mb-6 shrink-0">
+          Instruction
+        </h1>
 
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-5 py-6">
-        <InstructionContent />
-      </main>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain mb-6">
+          <InstructionContent />
+        </div>
 
-      <footer className="shrink-0 border-t border-slate-800 px-4 py-4 safe-bottom">
         <button
           type="button"
           onClick={() => {
             beginRegistrationFlow();
             navigate('/register');
           }}
-          className="w-full min-h-[52px] rounded-xl bg-[#3342FF] text-lg font-bold text-white active:scale-[0.98] touch-manipulation"
+          className="w-full min-h-[52px] shrink-0 rounded-xl bg-[#3342FF] text-lg font-bold text-white active:scale-[0.98] touch-manipulation"
         >
           Next — Register to play
         </button>
-      </footer>
+      </div>
     </div>
   );
 }

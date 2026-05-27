@@ -34,7 +34,7 @@ export default function Results() {
   }, [navigate]);
 
   return (
-    <div className="min-h-svh min-h-dvh bg-gradient-to-b from-slate-950 to-indigo-950 px-4 py-6 relative overflow-hidden max-w-lg mx-auto w-full safe-top safe-bottom">
+    <div className="flex-1 bg-gradient-to-b from-slate-950 to-indigo-950 px-4 py-6 relative overflow-hidden safe-bottom">
       <Confetti active={Boolean(winner)} intense={iWon} />
 
       <div className="text-center relative z-10">

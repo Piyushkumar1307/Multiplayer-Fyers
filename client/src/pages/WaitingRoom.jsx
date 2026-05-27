@@ -76,7 +76,7 @@ export default function WaitingRoom() {
   }, [code, navigate, playerId]);
 
   return (
-    <div className="min-h-svh min-h-dvh bg-slate-950 px-4 py-6 safe-top safe-bottom max-w-lg mx-auto w-full flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-950 px-4 py-6 safe-bottom">
       <header className="text-center shrink-0 mb-6">
         <p className="text-xs text-slate-400 uppercase">Room code</p>
         <p className="text-3xl sm:text-4xl font-mono font-bold tracking-[0.25em] text-indigo-400 mt-1">
