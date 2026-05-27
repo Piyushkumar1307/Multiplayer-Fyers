@@ -3,6 +3,14 @@ import { getSocketUrl } from './url';
 
 let socket = null;
 
+export function resetSocket() {
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
+}
+
 export function getSocket() {
   if (!socket) {
     socket = io(getSocketUrl(), {
@@ -16,5 +24,8 @@ export function getSocket() {
 }
 
 export function registerSocketPlayer(playerId) {
-  getSocket().emit('registerPlayer', { playerId });
+  if (!playerId) return;
+  const s = getSocket();
+  if (!s.connected) s.connect();
+  s.emit('registerPlayer', { playerId });
 }

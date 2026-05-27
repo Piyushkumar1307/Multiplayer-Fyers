@@ -157,7 +157,7 @@ export default function Game() {
 
   useEffect(() => {
     if (!isLoggedIn()) {
-      navigate('/', { replace: true });
+      navigate('/instructions', { replace: true });
       return;
     }
 

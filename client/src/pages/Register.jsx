@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register, establishSession } from '../lib/api';
-import { getPlayerName } from '../lib/auth';
+import { canRegister, finishRegistrationFlow } from '../lib/sessionFlow';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -11,12 +11,17 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const savedName = getPlayerName();
-    if (savedName) setName(savedName);
-  }, []);
+    if (!canRegister()) {
+      navigate('/instructions', { replace: true });
+    }
+  }, [navigate]);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!canRegister()) {
+      navigate('/instructions', { replace: true });
+      return;
+    }
     setError('');
     setLoading(true);
     try {
@@ -27,6 +32,7 @@ export default function Register() {
         playerId: data.playerId,
         name: trimmedName,
       });
+      finishRegistrationFlow();
       navigate('/lobby', { replace: true });
     } catch (err) {
       setError(err.message);
@@ -41,7 +47,9 @@ export default function Register() {
         <h1 className="text-2xl font-bold text-center text-white mb-1">
           Stock Market Simulator
         </h1>
-        <p className="text-center text-slate-400 text-sm mb-8">Trading Simulation</p>
+        <p className="text-center text-slate-400 text-sm mb-8">
+          New session — enter your details to join
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

@@ -56,7 +56,7 @@ export default function Results() {
         <Leaderboard leaderboard={leaderboard} showConfetti={false} />
 
         <p className="mt-6 text-sm text-indigo-300 animate-pulse">
-          Returning to lobby in {countdown}s…
+          Returning to instructions in {countdown}s…
         </p>
       </div>
     </div>

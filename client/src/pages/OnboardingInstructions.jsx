@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InstructionContent from '../components/InstructionContent';
-import { endPlaySession } from '../lib/sessionFlow';
+import { beginRegistrationFlow, endPlaySession } from '../lib/sessionFlow';
 
 export default function OnboardingInstructions() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    endPlaySession();
+  }, []);
 
   return (
     <div className="min-h-svh min-h-dvh flex flex-col bg-black text-white max-w-lg mx-auto w-full lg:max-w-2xl">
@@ -26,12 +31,12 @@ export default function OnboardingInstructions() {
         <button
           type="button"
           onClick={() => {
-            endPlaySession();
+            beginRegistrationFlow();
             navigate('/register');
           }}
           className="w-full min-h-[52px] rounded-xl bg-[#3342FF] text-lg font-bold text-white active:scale-[0.98] touch-manipulation"
         >
-          Next
+          Next — Register to play
         </button>
       </footer>
     </div>

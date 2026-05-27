@@ -1,7 +1,13 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { endPlaySession } from '../lib/sessionFlow';
 
 export default function Splash() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    endPlaySession();
+  }, []);
 
   return (
     <div className="min-h-svh min-h-dvh flex flex-col bg-black text-white max-w-lg mx-auto w-full lg:max-w-2xl">

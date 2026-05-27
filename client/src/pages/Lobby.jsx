@@ -16,7 +16,7 @@ export default function Lobby() {
 
     async function verify() {
       if (!isLoggedIn()) {
-        navigate('/register', { replace: true });
+        navigate('/instructions', { replace: true });
         return;
       }
       try {
@@ -24,9 +24,9 @@ export default function Lobby() {
         if (cancelled) return;
         registerSocketPlayer(getPlayerId());
         setSessionReady(true);
-      } catch (err) {
+      } catch {
         if (cancelled) return;
-        navigate('/register', { replace: true });
+        navigate('/instructions', { replace: true });
       }
     }
 
@@ -49,7 +49,7 @@ export default function Lobby() {
       navigate(`/room/${c}`);
     } catch (err) {
       if (err.message === 'Invalid session' || err.message === 'Missing session token') {
-        navigate('/register', { replace: true });
+        navigate('/instructions', { replace: true });
         return;
       }
       setError(err.message);

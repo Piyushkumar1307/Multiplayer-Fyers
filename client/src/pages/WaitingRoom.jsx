@@ -23,7 +23,7 @@ export default function WaitingRoom() {
 
   useEffect(() => {
     if (!isLoggedIn()) {
-      navigate('/register', { replace: true });
+      navigate('/instructions', { replace: true });
       return;
     }
 
@@ -38,7 +38,7 @@ export default function WaitingRoom() {
         setPlayers(data.players);
       } catch (err) {
         if (err.message === 'Invalid session' || err.message === 'Missing session token') {
-          navigate('/register', { replace: true });
+          navigate('/instructions', { replace: true });
           return;
         }
         setError(err.message);

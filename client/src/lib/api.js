@@ -1,5 +1,6 @@
 import { getSessionToken, clearAuth, setAuth } from './auth';
 import { getApiUrl } from './url';
+import { getSocket, resetSocket, registerSocketPlayer } from './socket';
 
 async function parseJson(res) {
   try {
@@ -69,10 +70,14 @@ export async function getMe() {
   return request('/api/auth/me');
 }
 
-/** Save session and verify it works before continuing */
+/** Save session, fresh socket, and verify token before lobby */
 export async function establishSession({ sessionToken, playerId, name }) {
   setAuth({ sessionToken, playerId, name });
+  resetSocket();
+  const socket = getSocket();
+  if (!socket.connected) socket.connect();
   await getMe();
+  registerSocketPlayer(playerId);
 }
 
 export function joinRoom(roomCode) {
