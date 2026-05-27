@@ -39,9 +39,7 @@ export default function Register() {
         <h1 className="text-2xl font-bold text-center text-white mb-1">
           Stock Market Simulator
         </h1>
-        <p className="text-center text-slate-400 text-sm mb-8">
-          Virtual trading · 2 players · 3 min round
-        </p>
+        <p className="text-center text-slate-400 text-sm mb-8">Trading Simulation</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

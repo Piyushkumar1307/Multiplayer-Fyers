@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm ci --prefix ../admin && npm run build --prefix ../admin && node ../scripts/merge-netlify-dist.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

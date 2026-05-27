@@ -21,11 +21,24 @@ router.post('/register', async (req, res) => {
     }
 
     const sessionToken = crypto.randomBytes(32).toString('hex');
-    const player = await prisma.player.create({
-      data: { name: trimmedName, phone: phoneStr, sessionToken },
+    const existing = await prisma.player.findFirst({
+      where: { phone: phoneStr },
+      orderBy: { createdAt: 'asc' },
     });
 
-    res.json({ playerId: player.id, sessionToken });
+    let player;
+    if (existing) {
+      player = await prisma.player.update({
+        where: { id: existing.id },
+        data: { name: trimmedName, sessionToken },
+      });
+    } else {
+      player = await prisma.player.create({
+        data: { name: trimmedName, phone: phoneStr, sessionToken },
+      });
+    }
+
+    res.json({ playerId: player.id, sessionToken, returningPlayer: Boolean(existing) });
   } catch (err) {
     console.error('register', err);
     res.status(500).json({ error: 'Registration failed' });

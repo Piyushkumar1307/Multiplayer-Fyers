@@ -12,6 +12,7 @@ import { getSocket } from '../lib/socket';
 import { applyTrades } from '../lib/portfolio';
 import { useRoomSocket } from '../hooks/useRoomSocket';
 import { useSocketStatus } from '../hooks/useSocketStatus';
+import { endPlaySession } from '../lib/sessionFlow';
 import StockCard from '../components/StockCard';
 import NewsBanner from '../components/NewsBanner';
 import TradePanel from '../components/TradePanel';
@@ -59,6 +60,11 @@ export default function Game() {
   const { roomCode } = useParams();
   const navigate = useNavigate();
   const playerId = getPlayerId();
+
+  const goToInstructionsAfterGame = useCallback(() => {
+    endPlaySession();
+    navigate('/instructions', { replace: true });
+  }, [navigate]);
   const socketConnected = useSocketStatus();
   useRoomSocket(roomCode, playerId, Boolean(roomCode && playerId));
 
@@ -79,6 +85,7 @@ export default function Game() {
 
   const serverPortfolioRef = useRef(null);
   const portfolioRef = useRef(null);
+  const gameEndTimerRef = useRef(null);
 
   useEffect(() => {
     portfolioRef.current = portfolio;
@@ -211,6 +218,10 @@ export default function Game() {
     const onGameEnd = ({ leaderboard, winner }) => {
       setPhase('ended');
       setEndOverlay({ leaderboard, winner });
+      if (gameEndTimerRef.current) window.clearTimeout(gameEndTimerRef.current);
+      gameEndTimerRef.current = window.setTimeout(() => {
+        goToInstructionsAfterGame();
+      }, 5000);
     };
 
     const onGameStart = () => {
@@ -238,6 +249,7 @@ export default function Game() {
     socket.on('gameInstructions', onGameInstructions);
 
     return () => {
+      if (gameEndTimerRef.current) window.clearTimeout(gameEndTimerRef.current);
       socket.off('roundStart', onRound);
       socket.off('gameSync', onRound);
       socket.off('newsUpdate', onNewsUpdate);
@@ -250,7 +262,14 @@ export default function Game() {
       socket.off('gameStart', onGameStart);
       socket.off('gameInstructions', onGameInstructions);
     };
-  }, [navigate, playerId, roomCode, applyNewsPrices, applyServerPortfolio]);
+  }, [
+    navigate,
+    playerId,
+    roomCode,
+    applyNewsPrices,
+    applyServerPortfolio,
+    goToInstructionsAfterGame,
+  ]);
 
   const showInstructions = phase === 'instructions';
   const tradingOpen = phase === 'trading';
@@ -367,7 +386,7 @@ export default function Game() {
               {formatProfit(endOverlay.winner?.delta)}
             </p>
             <p className="text-xs text-slate-400 animate-pulse">
-              Everyone returns to lobby shortly…
+              Returning to instructions…
             </p>
           </div>
         </div>

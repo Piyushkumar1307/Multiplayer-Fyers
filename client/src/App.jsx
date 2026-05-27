@@ -1,4 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import Splash from './pages/Splash';
+import OnboardingInstructions from './pages/OnboardingInstructions';
 import Register from './pages/Register';
 import Lobby from './pages/Lobby';
 import WaitingRoom from './pages/WaitingRoom';
@@ -10,7 +12,7 @@ import { useWakeLock } from './hooks/useWakeLock';
 import { isLoggedIn } from './lib/auth';
 
 function RequireAuth({ children }) {
-  if (!isLoggedIn()) return <Navigate to="/" replace />;
+  if (!isLoggedIn()) return <Navigate to="/register" replace />;
   return children;
 }
 
@@ -22,7 +24,9 @@ export default function App() {
       <GameRedirectListener />
       <ScreenAwakeHint />
       <Routes>
-        <Route path="/" element={<Register />} />
+        <Route path="/" element={<Splash />} />
+        <Route path="/instructions" element={<OnboardingInstructions />} />
+        <Route path="/register" element={<Register />} />
         <Route
           path="/lobby"
           element={
