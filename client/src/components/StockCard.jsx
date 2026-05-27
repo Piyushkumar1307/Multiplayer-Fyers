@@ -22,7 +22,10 @@ export default function StockCard({ stock, price, previousPrice, flash }) {
       <div className="flex justify-between items-start gap-1">
         <div className="min-w-0">
           <p className="text-[10px] text-slate-400 truncate">{meta.name}</p>
-          <p className="text-sm font-bold">{meta.ticker}</p>
+          <p className="text-sm font-bold">
+            {meta.ticker}{' '}
+            <span className="text-[10px] font-normal text-slate-400">({meta.sector})</span>
+          </p>
         </div>
         <span
           className={`text-xs font-semibold shrink-0 ${

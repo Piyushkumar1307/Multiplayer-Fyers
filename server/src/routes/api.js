@@ -4,6 +4,7 @@ const { prisma } = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
 const { normalizePortfolio, startingPlayerState } = require('../lib/portfolio');
 const { MAX_PLAYERS } = require('../constants/stocks');
+const { validatePhoneNumber } = require('../lib/phoneValidation');
 
 const router = express.Router();
 
@@ -24,8 +25,9 @@ router.post('/register', async (req, res) => {
     if (!trimmedName || trimmedName.length < 2) {
       return res.status(400).json({ error: 'Name is required (min 2 characters)' });
     }
-    if (!/^\d{10}$/.test(phoneStr)) {
-      return res.status(400).json({ error: 'Phone must be a 10-digit number' });
+    const phoneError = validatePhoneNumber(phoneStr);
+    if (phoneError) {
+      return res.status(400).json({ error: phoneError });
     }
 
     const sessionToken = crypto.randomBytes(32).toString('hex');

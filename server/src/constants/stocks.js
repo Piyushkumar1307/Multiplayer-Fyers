@@ -1,12 +1,12 @@
 const STOCKS = ['AERO', 'GRNV', 'NXBK', 'PHRX', 'OILF', 'AGRI'];
 
 const STOCK_META = {
-  AERO: { name: 'AeroCore', ticker: 'AERO' },
-  GRNV: { name: 'GreenVolt', ticker: 'GRNV' },
-  NXBK: { name: 'NexBank', ticker: 'NXBK' },
-  PHRX: { name: 'PharmaCore', ticker: 'PHRX' },
-  OILF: { name: 'OilForge', ticker: 'OILF' },
-  AGRI: { name: 'AgriHarvest', ticker: 'AGRI' },
+  AERO: { name: 'AeroCore', ticker: 'AERO', sector: 'Aviation' },
+  GRNV: { name: 'GreenVolt', ticker: 'GRNV', sector: 'Renewable Energy' },
+  NXBK: { name: 'NexBank', ticker: 'NXBK', sector: 'Banking' },
+  PHRX: { name: 'PharmaCore', ticker: 'PHRX', sector: 'Pharma' },
+  OILF: { name: 'OilForge', ticker: 'OILF', sector: 'Oil & Gas' },
+  AGRI: { name: 'AgriHarvest', ticker: 'AGRI', sector: 'Agriculture' },
 };
 
 const INITIAL_PRICE = 100;

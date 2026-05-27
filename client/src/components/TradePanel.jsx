@@ -22,7 +22,10 @@ export default function TradePanel({
     >
       <div className="flex justify-between text-sm mb-2">
         <div>
-          <p className="font-bold">{meta.ticker}</p>
+          <p className="font-bold">
+            {meta.ticker}{' '}
+            <span className="text-xs font-normal text-slate-400">({meta.sector})</span>
+          </p>
           <p className="text-xs text-slate-400">{meta.name}</p>
         </div>
         <div className="text-right">

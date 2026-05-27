@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register, establishSession } from '../lib/api';
 import { canRegister, finishRegistrationFlow } from '../lib/sessionFlow';
+import { validatePhoneNumber } from '../lib/phoneValidation';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -22,11 +23,18 @@ export default function Register() {
       navigate('/instructions', { replace: true });
       return;
     }
+    const phoneDigits = phone.replace(/\D/g, '');
+    const phoneError = validatePhoneNumber(phoneDigits);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
+
     setError('');
     setLoading(true);
     try {
       const trimmedName = name.trim();
-      const data = await register(trimmedName, phone.replace(/\D/g, ''));
+      const data = await register(trimmedName, phoneDigits);
       await establishSession({
         sessionToken: data.sessionToken,
         playerId: data.playerId,
@@ -76,7 +84,20 @@ export default function Register() {
               pattern="\d{10}"
               maxLength={10}
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              onChange={(e) => {
+                const next = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setPhone(next);
+                if (next.length === 10) {
+                  const msg = validatePhoneNumber(next);
+                  setError(msg || '');
+                } else {
+                  setError((prev) =>
+                    prev === 'Please enter a valid number' || prev === 'Phone must be a 10-digit number'
+                      ? ''
+                      : prev,
+                  );
+                }
+              }}
               placeholder="9876543210"
               className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />

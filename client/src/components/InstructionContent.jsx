@@ -1,6 +1,6 @@
 import {
   STOCKS,
-  STOCK_META,
+  formatTickerWithSector,
   STARTING_CASH,
   STARTING_SHARES_PER_STOCK,
   TRADING_SECONDS,
@@ -8,7 +8,7 @@ import {
 } from '../lib/constants';
 import { formatUnits } from '../lib/format';
 
-const TICKER_LIST = STOCKS.map((s) => STOCK_META[s].ticker).join(', ');
+const TICKER_LIST = STOCKS.map((s) => formatTickerWithSector(s)).join(', ');
 
 export default function InstructionContent() {
   return (
@@ -41,7 +41,7 @@ export default function InstructionContent() {
       <li className="flex gap-2 items-start">
         <span className="text-indigo-400 font-bold shrink-0">4.</span>
         <span>
-          You have <strong className="text-white">{TRADING_SECONDS}s</strong> to grow profit.
+          You have <strong className="text-white">{TRADING_SECONDS}s</strong> to earn profit.
           Leftover shares auto-sell when time runs out. Highest profit wins.
         </span>
       </li>
