@@ -1,5 +1,13 @@
-import { getSessionToken } from './auth';
+import { getSessionToken, clearAuth, setAuth } from './auth';
 import { getApiUrl } from './url';
+
+async function parseJson(res) {
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
 
 async function request(path, options = {}) {
   const headers = {
@@ -20,19 +28,51 @@ async function request(path, options = {}) {
     );
   }
 
-  const data = await res.json().catch(() => ({}));
+  const data = await parseJson(res);
 
   if (!res.ok) {
+    if (res.status === 401) {
+      clearAuth();
+    }
     throw new Error(data.error || 'Request failed');
   }
   return data;
 }
 
-export function register(name, phone) {
-  return request('/api/register', {
-    method: 'POST',
-    body: JSON.stringify({ name, phone }),
-  });
+/** Register without Authorization header — avoids stale tokens breaking re-login */
+export async function register(name, phone) {
+  const apiUrl = getApiUrl();
+  let res;
+  try {
+    res = await fetch(`${apiUrl}/api/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone }),
+    });
+  } catch {
+    throw new Error(
+      `Cannot reach API at ${apiUrl}. Check VITE_API_URL and that the server is running.`,
+    );
+  }
+
+  const data = await parseJson(res);
+  if (!res.ok) {
+    throw new Error(data.error || 'Registration failed');
+  }
+  if (!data.sessionToken || !data.playerId) {
+    throw new Error('Registration failed. Please try again.');
+  }
+  return data;
+}
+
+export async function getMe() {
+  return request('/api/auth/me');
+}
+
+/** Save session and verify it works before continuing */
+export async function establishSession({ sessionToken, playerId, name }) {
+  setAuth({ sessionToken, playerId, name });
+  await getMe();
 }
 
 export function joinRoom(roomCode) {

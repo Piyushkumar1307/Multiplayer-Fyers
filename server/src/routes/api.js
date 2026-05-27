@@ -7,6 +7,14 @@ const { MAX_PLAYERS } = require('../constants/stocks');
 
 const router = express.Router();
 
+router.get('/auth/me', requireAuth, (req, res) => {
+  res.json({
+    playerId: req.player.id,
+    name: req.player.name,
+    phone: req.player.phone,
+  });
+});
+
 router.post('/register', async (req, res) => {
   try {
     const { name, phone } = req.body;
@@ -38,7 +46,19 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    res.json({ playerId: player.id, sessionToken, returningPlayer: Boolean(existing) });
+    const verified = await prisma.player.findUnique({
+      where: { sessionToken: player.sessionToken },
+    });
+    if (!verified) {
+      console.error('register: token not persisted', player.id);
+      return res.status(500).json({ error: 'Registration failed. Please try again.' });
+    }
+
+    res.json({
+      playerId: player.id,
+      sessionToken: player.sessionToken,
+      returningPlayer: Boolean(existing),
+    });
   } catch (err) {
     console.error('register', err);
     res.status(500).json({ error: 'Registration failed' });

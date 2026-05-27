@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { register } from '../lib/api';
-import { setAuth, isLoggedIn } from '../lib/auth';
+import { register, establishSession } from '../lib/api';
+import { getPlayerName } from '../lib/auth';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -11,21 +11,23 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isLoggedIn()) navigate('/lobby', { replace: true });
-  }, [navigate]);
+    const savedName = getPlayerName();
+    if (savedName) setName(savedName);
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const data = await register(name.trim(), phone.replace(/\D/g, ''));
-      setAuth({
+      const trimmedName = name.trim();
+      const data = await register(trimmedName, phone.replace(/\D/g, ''));
+      await establishSession({
         sessionToken: data.sessionToken,
         playerId: data.playerId,
-        name: name.trim(),
+        name: trimmedName,
       });
-      navigate('/lobby');
+      navigate('/lobby', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -79,7 +81,7 @@ export default function Register() {
             disabled={loading}
             className="w-full min-h-[52px] rounded-xl bg-indigo-600 py-4 text-lg font-bold text-white hover:bg-indigo-500 disabled:opacity-50 touch-manipulation"
           >
-            {loading ? 'Joining…' : 'Enter the Market'}
+            {loading ? 'Signing in…' : 'Enter the Market'}
           </button>
         </form>
       </div>

@@ -1,18 +1,39 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { joinRoom } from '../lib/api';
-import { getPlayerName, isLoggedIn } from '../lib/auth';
+import { joinRoom, getMe } from '../lib/api';
+import { getPlayerName, getPlayerId, isLoggedIn } from '../lib/auth';
+import { registerSocketPlayer } from '../lib/socket';
 
 export default function Lobby() {
   const navigate = useNavigate();
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      navigate('/', { replace: true });
+    let cancelled = false;
+
+    async function verify() {
+      if (!isLoggedIn()) {
+        navigate('/register', { replace: true });
+        return;
+      }
+      try {
+        await getMe();
+        if (cancelled) return;
+        registerSocketPlayer(getPlayerId());
+        setSessionReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        navigate('/register', { replace: true });
+      }
     }
+
+    verify();
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   async function handleJoin() {
@@ -27,6 +48,10 @@ export default function Lobby() {
       await joinRoom(c);
       navigate(`/room/${c}`);
     } catch (err) {
+      if (err.message === 'Invalid session' || err.message === 'Missing session token') {
+        navigate('/register', { replace: true });
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);
@@ -36,6 +61,14 @@ export default function Lobby() {
   function onSubmit(e) {
     e.preventDefault();
     handleJoin();
+  }
+
+  if (!sessionReady) {
+    return (
+      <div className="min-h-svh min-h-dvh flex items-center justify-center bg-slate-950 text-slate-400">
+        Checking session…
+      </div>
+    );
   }
 
   return (

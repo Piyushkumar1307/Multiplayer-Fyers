@@ -4,7 +4,6 @@ const {
   STOCKS,
   TOTAL_ROUNDS,
   TRADING_SECONDS,
-  INSTRUCTION_SECONDS,
   NEWS_EVENTS_PER_GAME,
   NEWS_MULTI_PER_GAME,
   NEWS_SINGLE_PER_GAME,
@@ -381,17 +380,6 @@ class GameManager {
 
     if (game.phase === 'ended') return;
 
-    if (game.phase === 'instructions') {
-      const startedAt = game.instructionStartedAt || Date.now();
-      const elapsed = Date.now() - startedAt;
-      const remainingMs = Math.max(0, INSTRUCTION_SECONDS * 1000 - elapsed);
-      socket.emit('gameInstructions', {
-        seconds: Math.max(1, Math.ceil(remainingMs / 1000)),
-        roundNumber: game.sessionRound,
-      });
-      return;
-    }
-
     if (game.phase !== 'trading') return;
 
     try {
@@ -548,14 +536,6 @@ class GameManager {
     return card;
   }
 
-  beginTrading(roomCode) {
-    const game = this.getGame(roomCode);
-    if (!game || game.phase !== 'instructions') return;
-    game.phase = 'trading';
-    game.instructionStartedAt = null;
-    void this.scheduleNewsAndTimer(roomCode);
-  }
-
   async scheduleNewsAndTimer(roomCode) {
     const game = this.getGame(roomCode);
     if (!game) return;
@@ -694,25 +674,14 @@ class GameManager {
 
     this.bumpEpoch(game);
     this.clearTimers(game);
-    game.phase = 'instructions';
-    game.instructionStartedAt = Date.now();
+    game.phase = 'trading';
     game.prices = initialPrices();
     game.roundId = null;
     game.roundInitPromise = null;
     game.newsQueue = [];
 
     await this.ensureGameRound(game);
-
-    this.io.to(game.roomCode).emit('gameInstructions', {
-      seconds: INSTRUCTION_SECONDS,
-      roundNumber: game.sessionRound,
-    });
-
-    this.scheduleTimer(
-      game,
-      () => this.beginTrading(roomCode),
-      INSTRUCTION_SECONDS * 1000,
-    );
+    void this.scheduleNewsAndTimer(roomCode);
   }
 
   async executeStockTrade(roomCode, playerId, stock, action, quantity = 1) {
