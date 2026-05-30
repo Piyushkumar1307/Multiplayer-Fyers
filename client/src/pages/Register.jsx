@@ -99,7 +99,7 @@ export default function Register() {
                 }
               }}
               placeholder="9876543210"
-              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-white/50 placeholder:text-slate-500/70 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
           {error && (
