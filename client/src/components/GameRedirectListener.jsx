@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSocket } from '../lib/socket';
-import { endPlaySession } from '../lib/sessionFlow';
+import { getSocket, registerSocketPlayer } from '../lib/socket';
+import { getPlayerId, isLoggedIn } from '../lib/auth';
+import { afterGameEnd } from '../lib/sessionFlow';
 
 export default function GameRedirectListener() {
   const navigate = useNavigate();
@@ -10,11 +11,15 @@ export default function GameRedirectListener() {
     const socket = getSocket();
 
     const onReturnAfterGame = () => {
-      endPlaySession();
-      navigate('/instructions', { replace: true });
+      afterGameEnd();
+      navigate('/lobby', { replace: true });
     };
 
     socket.on('returnToLobby', onReturnAfterGame);
+
+    if (isLoggedIn()) {
+      registerSocketPlayer(getPlayerId());
+    }
 
     return () => {
       socket.off('returnToLobby', onReturnAfterGame);

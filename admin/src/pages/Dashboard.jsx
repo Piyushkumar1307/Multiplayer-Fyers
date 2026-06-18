@@ -196,7 +196,7 @@ export default function Dashboard() {
     selectedRoom?.playerCount ?? 0,
     standings.length,
   );
-  const minPlayers = roomDetail?.minPlayersToStart ?? 5;
+  const minPlayers = roomDetail?.minPlayersToStart ?? 1;
   const maxPlayers = roomDetail?.maxPlayers ?? selectedRoom?.maxPlayers ?? 20;
   const canStartGame =
     selectedRoom?.status === 'WAITING' && joinedCount >= minPlayers;

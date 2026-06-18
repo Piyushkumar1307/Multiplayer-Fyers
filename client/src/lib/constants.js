@@ -22,4 +22,4 @@ export const TRADING_SECONDS = 120;
 export const INSTRUCTION_SECONDS = 8;
 export const NEWS_EVENTS_PER_GAME = 8;
 export const MAX_PLAYERS = 20;
-export const MIN_PLAYERS_TO_START = 5;
+export const MIN_PLAYERS_TO_START = 1;

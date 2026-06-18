@@ -13,7 +13,7 @@ import { useWakeLock } from './hooks/useWakeLock';
 import { isLoggedIn } from './lib/auth';
 
 function RequireAuth({ children }) {
-  if (!isLoggedIn()) return <Navigate to="/instructions" replace />;
+  if (!isLoggedIn()) return <Navigate to="/register" replace />;
   return children;
 }
 

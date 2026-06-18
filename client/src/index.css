@@ -60,6 +60,71 @@ body {
   animation: news-scroll 40s linear infinite;
 }
 
+@keyframes tradeToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.trade-toast {
+  animation: tradeToastIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.trade-toast-stack {
+  bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes tradePanelPulseBuy {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+    border-color: rgb(52 211 153 / 0.8);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(52, 211, 153, 0);
+    border-color: rgb(71 85 105);
+  }
+}
+
+@keyframes tradePanelPulseSell {
+  0% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55);
+    border-color: rgb(248 113 113 / 0.8);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(248, 113, 113, 0);
+    border-color: rgb(71 85 105);
+  }
+}
+
+.trade-panel-pulse-buy {
+  animation: tradePanelPulseBuy 0.55s ease-out;
+}
+
+.trade-panel-pulse-sell {
+  animation: tradePanelPulseSell 0.55s ease-out;
+}
+
+@keyframes tradeBtnPop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.trade-btn-pop {
+  animation: tradeBtnPop 0.35s ease-out;
+}
+
 @media (min-width: 640px) {
   .animate-news-scroll {
     animation-duration: 48s;

@@ -31,11 +31,14 @@ enum StockTicker {
 }
 
 model Player {
-  id           String   @id @default(cuid())
-  name         String
-  phone        String
-  sessionToken String   @unique
-  createdAt    DateTime @default(now())
+  id              String    @id @default(cuid())
+  name            String
+  phone           String
+  sessionToken    String    @unique
+  phoneVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([phone])
 
   hostedRooms  Room[]       @relation("RoomHost")
   wonRooms     Room[]       @relation("RoomWinner")

@@ -1,24 +1,15 @@
 import { clearAuth } from './auth';
-import { resetSocket } from './socket';
+import { getSocket, resetSocket } from './socket';
 
-const REGISTRATION_GATE_KEY = 'mayRegister';
-
-/** Wipe client session — previous player no longer exists for this device */
+/** Full logout — only when user explicitly signs out or invalid session */
 export function endPlaySession() {
   clearAuth();
-  sessionStorage.removeItem(REGISTRATION_GATE_KEY);
   resetSocket();
 }
 
-export function beginRegistrationFlow() {
-  endPlaySession();
-  sessionStorage.setItem(REGISTRATION_GATE_KEY, '1');
-}
-
-export function canRegister() {
-  return sessionStorage.getItem(REGISTRATION_GATE_KEY) === '1';
-}
-
-export function finishRegistrationFlow() {
-  sessionStorage.removeItem(REGISTRATION_GATE_KEY);
+/** After a game ends: keep login, go play again in a new room */
+export function afterGameEnd() {
+  resetSocket();
+  const socket = getSocket();
+  if (socket.connected) socket.connect();
 }

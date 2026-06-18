@@ -15,15 +15,18 @@
     "db:setup": "prisma db push && node prisma/seed.js",
     "db:reset": "prisma db push --force-reset --accept-data-loss && node prisma/seed.js",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "twilio:verify-list": "node scripts/list-verify-services.js"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "firebase-admin": "^13.10.0",
     "prisma": "^6.19.3",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "twilio": "^6.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

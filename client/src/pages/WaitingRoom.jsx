@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getRoom } from '../lib/api';
 import { getPlayerId, isLoggedIn } from '../lib/auth';
-import { endPlaySession } from '../lib/sessionFlow';
+import { afterGameEnd } from '../lib/sessionFlow';
 import { getSocket } from '../lib/socket';
 import { useRoomSocket } from '../hooks/useRoomSocket';
 import PlayerList from '../components/PlayerList';
@@ -23,7 +23,7 @@ export default function WaitingRoom() {
 
   useEffect(() => {
     if (!isLoggedIn()) {
-      navigate('/instructions', { replace: true });
+      navigate('/register', { replace: true });
       return;
     }
 
@@ -38,7 +38,7 @@ export default function WaitingRoom() {
         setPlayers(data.players);
       } catch (err) {
         if (err.message === 'Invalid session' || err.message === 'Missing session token') {
-          navigate('/instructions', { replace: true });
+          navigate('/register', { replace: true });
           return;
         }
         setError(err.message);
@@ -54,8 +54,8 @@ export default function WaitingRoom() {
     };
 
     const onReturnToLobby = () => {
-      endPlaySession();
-      navigate('/instructions', { replace: true });
+      afterGameEnd();
+      navigate('/lobby', { replace: true });
     };
 
     const onRoomClosed = () => {
@@ -129,7 +129,7 @@ export default function WaitingRoom() {
           onClick={() => navigate('/lobby')}
           className="w-full min-h-[44px] rounded-xl border border-slate-600 text-slate-400 text-sm touch-manipulation"
         >
-          Back to lobby
+          Back to room
         </button>
       </footer>
     </div>

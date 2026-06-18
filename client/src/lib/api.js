@@ -40,15 +40,14 @@ async function request(path, options = {}) {
   return data;
 }
 
-/** Register without Authorization header — avoids stale tokens breaking re-login */
-export async function register(name, phone) {
+async function publicPost(path, body) {
   const apiUrl = getApiUrl();
   let res;
   try {
-    res = await fetch(`${apiUrl}/api/register`, {
+    res = await fetch(`${apiUrl}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone }),
+      body: JSON.stringify(body),
     });
   } catch {
     throw new Error(
@@ -58,8 +57,17 @@ export async function register(name, phone) {
 
   const data = await parseJson(res);
   if (!res.ok) {
-    throw new Error(data.error || 'Registration failed');
+    throw new Error(data.error || 'Request failed');
   }
+  return data;
+}
+
+export function sendVerificationOtp(phone) {
+  return publicPost('/api/otp/send', { phone });
+}
+
+export async function registerWithOtp(name, phone, code) {
+  const data = await publicPost('/api/register', { name, phone, code });
   if (!data.sessionToken || !data.playerId) {
     throw new Error('Registration failed. Please try again.');
   }
@@ -70,7 +78,6 @@ export async function getMe() {
   return request('/api/auth/me');
 }
 
-/** Save session, fresh socket, and verify token before lobby */
 export async function establishSession({ sessionToken, playerId, name }) {
   setAuth({ sessionToken, playerId, name });
   resetSocket();

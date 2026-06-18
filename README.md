@@ -1,148 +1,224 @@
-# Multiplayer Stock Market Simulator
+# BornToTrade Challenge
 
-Browser-based multiplayer stock trading simulator (fictional stocks, virtual ₹10,000).
+A live, multiplayer **stock market simulation** built for events, workshops, and brand activations. Participants trade fictional stocks in real time, react to breaking news, and compete for the highest profit — all from their phone browser.
 
-## Structure
-
-```
-/client   → Player app (React + Vite) — served at /
-/admin    → Admin dashboard (React + Vite) — served at /admin/
-/server   → API + Socket.io + game engine — Render
-```
-
-## Local development
-
-### 1. Server
-
-```bash
-cp server/.env.example server/.env
-# Edit DATABASE_URL, ADMIN_SECRET, etc.
-
-cd server
-npm install
-npm run db:setup
-npm run dev
-```
-
-Runs at **http://localhost:4000**
-
-### 2. Player app
-
-```bash
-cp client/.env.example client/.env
-cd client && npm install && npm run dev
-```
-
-**http://localhost:5173**
-
-### 3. Admin panel
-
-```bash
-cp admin/.env.example admin/.env
-cd admin && npm install && npm run dev
-```
-
-**http://localhost:5174/admin/** — login with `ADMIN_SECRET` from `server/.env`
-
-### Flow
-
-1. Admin creates a room → shares 4-letter code  
-2. Players register → enter code → wait  
-3. Admin starts game → live P&amp;L on admin dashboard  
-4. Game runs → results → back to lobby  
+Powered by **FYERS** branding. No real money. No app install required.
 
 ---
 
-## Production deploy
+## What participants experience
 
-### Render (backend)
+| Step | Screen | What happens |
+|------|--------|----------------|
+| 1 | **Welcome** | Tap **Tap To Start** on the BornToTrade Challenge splash |
+| 2 | **Instruction** | Short rules: starting cash, how to buy/sell, news headlines, 120-second round |
+| 3 | **Register** | Enter name and mobile number → **SMS verification** → continue |
+| 4 | **Instruction** | Review rules again, then **Continue to room** |
+| 5 | **Room** | Enter the **4-letter room code** from the host and join |
+| 6 | **Waiting room** | See who has joined; wait until the host starts the game |
+| 7 | **Live trading** | Buy and sell shares as **breaking news** moves stock prices |
+| 8 | **Game over** | Winner reveal; return to **Room** (still signed in) |
 
-1. New **Web Service** → connect repo → **Root directory:** `server`
-2. **Build command:** `npm install && npm run build`
-3. **Start command:** `npm start`
-4. **Environment variables:**
+**Next rounds at the same event:** Room → optional **Instructions** (Close returns to Room) → join with a new code → play again. **No second SMS** unless the player taps **Log out**.
 
-| Key | Value |
-|-----|--------|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | Neon PostgreSQL URL |
-| `SESSION_SECRET` | long random string |
-| `ADMIN_SECRET` | admin login password |
-| `CLIENT_URL` | `https://your-site.netlify.app` (same URL if using subpaths) |
-| `ADMIN_URL` | `https://your-site.netlify.app` (or separate admin site URL) |
+---
 
-No trailing slashes on URLs. Use `ALLOWED_ORIGINS` for extra Netlify preview URLs (comma-separated).
+## Player journey (visual)
 
-Health check: `GET /api/health`
+### First time
 
-Or use the included `render.yaml` blueprint.
-
-### Netlify (player + admin on one site) — recommended
-
-Deploy from the **repository root** (not `client/` or `admin/` alone).
-
-| Setting | Value |
-|---------|--------|
-| Base directory | *(leave empty — repo root)* |
-| Build command | `npm run build:web` |
-| Publish directory | `client/dist` |
-
-**URLs after deploy**
-
-- Player: `https://your-site.netlify.app/`
-- Admin: `https://your-site.netlify.app/admin/`
-
-**Netlify build env** (Site settings → Environment variables):
-
-| Key | Value |
-|-----|--------|
-| `VITE_API_URL` | Your Render API URL |
-| `VITE_SOCKET_URL` | Same Render URL |
-
-Vite picks these up for **both** client and admin builds.
-
-**Local combined build (test before deploy):**
-
-```bash
-# optional: client/.env.production and admin/.env.production with VITE_*
-npm run build:web:local
-npx serve client/dist
-# open http://localhost:3000/ and http://localhost:3000/admin/
+```
+┌─────────┐   ┌──────────────┐   ┌──────────┐   ┌──────────────┐   ┌────────┐
+│ Welcome │ → │ Instruction  │ → │ Register │ → │ Instruction  │ → │  Room  │
+│  Splash │   │   (rules)    │   │ + SMS OTP│   │ Continue…    │   │ (code) │
+└─────────┘   └──────────────┘   └──────────┘   └──────────────┘   └───┬────┘
+                                                                          │
+                    ┌─────────────┐   ┌────────────┐                      ▼
+                    │ Live trading│ ← │  Waiting   │ ←──────────────────────┘
+                    │ 120 seconds │   │   room     │
+                    └──────┬──────┘   └────────────┘
+                           │
+                           ▼
+                    ┌─────────┐
+                    │  Room   │  ← same player, same login
+                    └─────────┘
 ```
 
-Root `netlify.toml` handles SPA redirects for `/` and `/admin/*`.
+### Returning during the event (already verified)
 
-### Netlify (legacy — separate sites)
+```
+┌─────────┐   ┌────────┐   ┌─────────────┐   ┌────────────┐   ┌─────────┐
+│ Welcome │ → │  Room  │ → │ Instruction │ → │  Room      │ → │  Game   │ → …
+│ (skip)  │   │ (code) │   │  (optional) │   │  (Close)   │   │         │
+└─────────┘   └────────┘   └─────────────┘   └────────────┘   └─────────┘
+```
 
-- Player only: base directory `client`, publish `dist`
-- Admin only: base directory `admin`, publish `dist`
-
----
-
-## Env checklist (production)
-
-| Where | Variable | Points to |
-|-------|----------|-----------|
-| Render | `CLIENT_URL` | Netlify site URL (no trailing slash) |
-| Render | `ADMIN_URL` | Same URL if using `/admin/` subpath |
-| Render | `ADMIN_SECRET` | Admin password |
-| Netlify | `VITE_API_URL` | Render URL (build time, both apps) |
-| Netlify | `VITE_SOCKET_URL` | Render URL (build time, both apps) |
-
-After changing Render env vars → **Manual Deploy**.  
-After changing Netlify env vars → **Rebuild** (Vite bakes env at build time).
+If the player is still signed in, **Welcome** goes straight to **Room**. **Log out** on the Room screen starts the full flow again from **Welcome**.
 
 ---
 
-## Scripts (server)
+## Registration & phone verification
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | API + Socket.io (nodemon) |
-| `npm run build` | `prisma db push` + seed (Render) |
-| `npm start` | Production server |
-| `npm run db:setup` | Local schema push + seed |
+Before joining a room, each player verifies their mobile number with a **one-time SMS code** (Twilio Verify).
 
-## Stocks
+### Registration steps
 
-AERO, GRNV, NXBK, PHRX — starting price ₹100 each.
+| Step | What the player does |
+|------|----------------------|
+| 1 | Enter **name** (minimum 2 characters) |
+| 2 | Enter **10-digit mobile number** (India format) |
+| 3 | Tap **Send verification code** |
+| 4 | Enter the **6-digit SMS code** |
+| 5 | Tap **Verify & Enter the Market** → **Instruction** → **Continue to room** |
+
+### What players see
+
+- Clear prompts if the number is invalid (e.g. incomplete or obviously fake numbers like `0000000000`)
+- Option to **resend** the code after a short wait
+- On **Room**: **Instructions** (review rules) and **Log out** (ends session for this device)
+- Only after verification can they enter a room code and join the game
+
+### Staying signed in
+
+| Situation | Behaviour |
+|-----------|-----------|
+| Game ends | Player returns to **Room** with the **same account** (no re-register) |
+| New room code from host | Enter code on **Room** and play again |
+| Want to switch phone / person | Tap **Log out**, then register again |
+| Same phone, later session | Server recognises the number and reuses the player profile |
+
+### Host view
+
+Verified name and phone appear in the **admin dashboard** for the room (standings and player list), so staff can match participants on the floor if needed.
+
+---
+
+## Room screen (join hub)
+
+The **Room** screen is the home base during the event:
+
+| Control | Purpose |
+|---------|---------|
+| **Room code** | 4-letter code from the host (e.g. `ABCD`) |
+| **Join room** | Enters the waiting room for that code |
+| **Instructions** | Opens rules; **Close** returns to Room |
+| **Log out** | Clears session; next visit starts from Welcome |
+
+---
+
+## How the game works
+
+### Starting position
+- **₹10,000** virtual cash  
+- **10 shares** of every listed stock (no cash deducted for starter holdings)
+
+### Trading
+- Tap **Buy** or **Sell** — each action trades **1 share** at the current price  
+- Six fictional companies across different sectors (see table below)
+
+### News-driven market
+- **8 breaking headlines** during the round  
+- Each headline affects only the stocks it mentions — prices move **up** or **down** immediately  
+- Players react in real time on their devices
+
+### Round end
+- **120 seconds** to earn profit  
+- Any shares still held are **auto-sold** when time runs out  
+- **Highest profit wins** the room  
+- Players are sent back to **Room** to join the next session
+
+---
+
+## Stocks in the simulation
+
+| Ticker | Company     | Sector            |
+|--------|-------------|-------------------|
+| AERO   | AeroCore    | Aviation          |
+| GRNV   | GreenVolt   | Renewable Energy  |
+| NXBK   | NexBank     | Banking           |
+| PHRX   | PharmaCore  | Pharma            |
+| OILF   | OilForge    | Oil & Gas         |
+| AGRI   | AgriHarvest | Agriculture       |
+
+All stocks start at the same base price. Movement is driven entirely by in-game news — not live market data.
+
+---
+
+## Host / admin experience
+
+A separate **admin dashboard** is used by event staff (not shown to players).
+
+| Step | Action |
+|------|--------|
+| 1 | Sign in to the admin panel |
+| 2 | **Create a room** — receive a unique 4-letter code |
+| 3 | Share the code with participants (on stage, QR, or chat) |
+| 4 | Monitor who has joined and live standings |
+| 5 | **Start game** when enough players are in the room (minimum 1 for testing, up to 20 per room) |
+| 6 | Watch profit/loss update live during the round |
+| 7 | Close or reset rooms between sessions as needed |
+
+The host controls **when** the clock starts; players only need the room code and their phone.
+
+---
+
+## Ideal use cases
+
+- **FYERS BornToTrade Challenge** — arena or booth activations  
+- **College / corporate events** — competitive, easy-to-explain format  
+- **Trading education demos** — risk-free environment with news-driven volatility  
+- **Leaderboard moments** — winner reveal on the big screen after 2 minutes  
+
+---
+
+## What you need on event day
+
+| Role | Needs |
+|------|--------|
+| **Players** | Smartphone with browser + room code + mobile data or Wi‑Fi |
+| **Host** | Laptop or tablet + admin login + projector optional for standings |
+| **Internet** | Stable connection for player site and admin (hosted online) |
+
+No app store download. Works on modern mobile browsers (iOS Safari, Android Chrome).
+
+---
+
+## Access URLs (production)
+
+Replace with your live domains when deployed:
+
+| Audience | URL |
+|----------|-----|
+| **Players** | `https://your-domain.com/` |
+| **Admin** | `https://your-domain.com/admin/` |
+
+Custom domains and HTTPS are configured on the hosting provider (e.g. Netlify for the front end).
+
+---
+
+## Registration checks
+
+- Name required (minimum 2 characters)  
+- Valid 10-digit Indian mobile number  
+- Invalid patterns (e.g. same digit repeated 10 times) are rejected with a clear message  
+- **SMS OTP must be verified once** before the player can join a room  
+- Session persists across games until **Log out**
+
+---
+
+## Privacy & safety
+
+- **Simulation only** — no real trades, no brokerage integration for players  
+- Fictional tickers and prices  
+- Player details used for session and leaderboard display during the event  
+- SMS OTP is sent **only for phone verification** at registration (Twilio Verify)  
+
+---
+
+## Support & handover
+
+For technical deployment, environment setup, or changes to rules/timing/stocks, refer to your delivery team’s internal documentation (`DEVELOPMENT.md`).
+
+---
+
+**BornToTrade Challenge** — *Born to Trade. Compete. Win.*

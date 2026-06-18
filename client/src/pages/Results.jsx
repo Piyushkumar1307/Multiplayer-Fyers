@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Leaderboard from '../components/Leaderboard';
 import Confetti from '../components/Confetti';
 import { getPlayerId } from '../lib/auth';
-import { endPlaySession } from '../lib/sessionFlow';
+import { afterGameEnd } from '../lib/sessionFlow';
 import { formatProfit } from '../lib/format';
 
 const LOBBY_DELAY_SEC = 5;
@@ -23,8 +23,8 @@ export default function Results() {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(t);
-          endPlaySession();
-          navigate('/instructions', { replace: true });
+          afterGameEnd();
+          navigate('/lobby', { replace: true });
           return 0;
         }
         return c - 1;
@@ -56,7 +56,7 @@ export default function Results() {
         <Leaderboard leaderboard={leaderboard} showConfetti={false} />
 
         <p className="mt-6 text-sm text-indigo-300 animate-pulse">
-          Returning to instructions in {countdown}s…
+          Returning to room in {countdown}s…
         </p>
       </div>
     </div>

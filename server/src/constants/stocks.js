@@ -19,7 +19,7 @@ const NEWS_EVENTS_PER_GAME = 8;
 const NEWS_MULTI_PER_GAME = 5;
 const NEWS_SINGLE_PER_GAME = 3;
 const MAX_PLAYERS = 20;
-const MIN_PLAYERS_TO_START = 5;
+const MIN_PLAYERS_TO_START = 1;
 
 module.exports = {
   STOCKS,

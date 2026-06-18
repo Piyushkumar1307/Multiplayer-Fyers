@@ -5,6 +5,8 @@ const { requireAuth } = require('../middleware/auth');
 const { normalizePortfolio, startingPlayerState } = require('../lib/portfolio');
 const { MAX_PLAYERS } = require('../constants/stocks');
 const { validatePhoneNumber } = require('../lib/phoneValidation');
+const { sendVerificationOtp, checkVerificationOtp } = require('../lib/twilioVerify');
+const { checkSendAllowed, recordSend } = require('../lib/otpRateLimit');
 
 const router = express.Router();
 
@@ -13,14 +15,51 @@ router.get('/auth/me', requireAuth, (req, res) => {
     playerId: req.player.id,
     name: req.player.name,
     phone: req.player.phone,
+    phoneVerified: Boolean(req.player.phoneVerifiedAt),
   });
+});
+
+router.post('/otp/send', async (req, res) => {
+  try {
+    const phoneStr = String(req.body.phone || '').replace(/\D/g, '');
+    const phoneError = validatePhoneNumber(phoneStr);
+    if (phoneError) {
+      return res.status(400).json({ error: phoneError });
+    }
+
+    const rate = checkSendAllowed(phoneStr);
+    if (!rate.ok) {
+      return res.status(429).json({ error: rate.error });
+    }
+
+    const result = await sendVerificationOtp(phoneStr);
+    recordSend(phoneStr, rate.hourKey);
+
+    if (result.dev) {
+      const devCode = process.env.OTP_DEV_CODE || '123456';
+      return res.json({
+        success: true,
+        devMode: true,
+        message: `No SMS in dev mode. Enter code ${devCode} below.`,
+        devCodeHint: devCode,
+      });
+    }
+
+    res.json({ success: true, message: 'Verification code sent' });
+  } catch (err) {
+    console.error('otp/send', err);
+    const msg = err.message || 'Failed to send verification code';
+    const status = msg.includes('not configured') ? 503 : 400;
+    res.status(status).json({ error: msg });
+  }
 });
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone } = req.body;
+    const { name, phone, code } = req.body;
     const trimmedName = String(name || '').trim();
     const phoneStr = String(phone || '').replace(/\D/g, '');
+    const otpCode = String(code || '').trim();
 
     if (!trimmedName || trimmedName.length < 2) {
       return res.status(400).json({ error: 'Name is required (min 2 characters)' });
@@ -29,27 +68,56 @@ router.post('/register', async (req, res) => {
     if (phoneError) {
       return res.status(400).json({ error: phoneError });
     }
+    if (!otpCode) {
+      return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    await checkVerificationOtp(phoneStr, otpCode);
 
     const sessionToken = crypto.randomBytes(32).toString('hex');
-    const player = await prisma.player.create({
-      data: { name: trimmedName, phone: phoneStr, sessionToken },
+    const now = new Date();
+
+    const existing = await prisma.player.findFirst({
+      where: { phone: phoneStr },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const verified = await prisma.player.findUnique({
-      where: { sessionToken: player.sessionToken },
-    });
-    if (!verified) {
-      console.error('register: token not persisted', player.id);
-      return res.status(500).json({ error: 'Registration failed. Please try again.' });
+    let player;
+    if (existing) {
+      player = await prisma.player.update({
+        where: { id: existing.id },
+        data: {
+          name: trimmedName,
+          sessionToken,
+          phoneVerifiedAt: now,
+        },
+      });
+    } else {
+      player = await prisma.player.create({
+        data: {
+          name: trimmedName,
+          phone: phoneStr,
+          sessionToken,
+          phoneVerifiedAt: now,
+        },
+      });
     }
 
     res.json({
       playerId: player.id,
       sessionToken: player.sessionToken,
+      returningPlayer: Boolean(existing),
     });
   } catch (err) {
     console.error('register', err);
-    res.status(500).json({ error: 'Registration failed' });
+    const msg = err.message || 'Registration failed';
+    const isOtpError =
+      /verification|verification code|expired/i.test(msg) &&
+      !msg.includes('prisma') &&
+      !msg.includes('Unknown argument');
+    const status = isOtpError ? 400 : 500;
+    const clientMsg = status === 500 ? 'Registration failed. Please try again.' : msg;
+    res.status(status).json({ error: clientMsg });
   }
 });
 

@@ -11,10 +11,11 @@ import { getSocket } from '../lib/socket';
 import { applyTrades } from '../lib/portfolio';
 import { useRoomSocket } from '../hooks/useRoomSocket';
 import { useSocketStatus } from '../hooks/useSocketStatus';
-import { endPlaySession } from '../lib/sessionFlow';
+import { afterGameEnd } from '../lib/sessionFlow';
 import StockCard from '../components/StockCard';
 import NewsBanner from '../components/NewsBanner';
 import TradePanel from '../components/TradePanel';
+import TradeToast from '../components/TradeToast';
 import Portfolio from '../components/Portfolio';
 import Timer from '../components/Timer';
 import { formatProfit } from '../lib/format';
@@ -59,9 +60,9 @@ export default function Game() {
   const navigate = useNavigate();
   const playerId = getPlayerId();
 
-  const goToInstructionsAfterGame = useCallback(() => {
-    endPlaySession();
-    navigate('/instructions', { replace: true });
+  const goToLobbyAfterGame = useCallback(() => {
+    afterGameEnd();
+    navigate('/lobby', { replace: true });
   }, [navigate]);
   const socketConnected = useSocketStatus();
   useRoomSocket(roomCode, playerId, Boolean(roomCode && playerId));
@@ -78,11 +79,13 @@ export default function Game() {
   const [portfolio, setPortfolio] = useState(null);
   const [tradeError, setTradeError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  const [tradeToasts, setTradeToasts] = useState([]);
   const [endOverlay, setEndOverlay] = useState(null);
 
   const serverPortfolioRef = useRef(null);
   const portfolioRef = useRef(null);
   const gameEndTimerRef = useRef(null);
+  const toastTimersRef = useRef(new Map());
 
   useEffect(() => {
     portfolioRef.current = portfolio;
@@ -116,6 +119,24 @@ export default function Game() {
     return (portfolio.cash || 0) + stockVal;
   }, [portfolio, prices]);
 
+  const pushTradeToast = useCallback((toast) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setTradeToasts((prev) => [...prev.slice(-2), { id, ...toast }]);
+    const timer = window.setTimeout(() => {
+      setTradeToasts((prev) => prev.filter((t) => t.id !== id));
+      toastTimersRef.current.delete(id);
+    }, 2400);
+    toastTimersRef.current.set(id, timer);
+  }, []);
+
+  useEffect(() => {
+    const timers = toastTimersRef.current;
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
   const handleTrade = useCallback(
     (stock, action, quantity) => {
       setTradeError('');
@@ -132,6 +153,12 @@ export default function Game() {
         const next = { ...current, cash: result.cash, portfolio: result.portfolio };
         portfolioRef.current = next;
         setPortfolio(next);
+        pushTradeToast({
+          stock,
+          action,
+          quantity,
+          price: prices[stock] || 100,
+        });
         getSocket().emit(action === 'BUY' ? 'buyStock' : 'sellStock', {
           roomCode,
           playerId,
@@ -142,7 +169,7 @@ export default function Game() {
         setTradeError(err.message);
       }
     },
-    [prices, roomCode, playerId],
+    [prices, roomCode, playerId, pushTradeToast],
   );
 
   const handleBuy = useCallback(
@@ -157,7 +184,7 @@ export default function Game() {
 
   useEffect(() => {
     if (!isLoggedIn()) {
-      navigate('/instructions', { replace: true });
+      navigate('/register', { replace: true });
       return;
     }
 
@@ -209,7 +236,7 @@ export default function Game() {
       setEndOverlay({ leaderboard, winner });
       if (gameEndTimerRef.current) window.clearTimeout(gameEndTimerRef.current);
       gameEndTimerRef.current = window.setTimeout(() => {
-        goToInstructionsAfterGame();
+        goToLobbyAfterGame();
       }, 5000);
     };
 
@@ -247,7 +274,7 @@ export default function Game() {
     roomCode,
     applyNewsPrices,
     applyServerPortfolio,
-    goToInstructionsAfterGame,
+    goToLobbyAfterGame,
   ]);
 
   const tradingOpen = phase === 'trading';
@@ -344,6 +371,8 @@ export default function Game() {
         </footer>
       )}
 
+      {tradingOpen && <TradeToast toasts={tradeToasts} />}
+
       {endOverlay && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/80 p-4 safe-bottom">
           <div className="w-full max-w-sm rounded-2xl border border-amber-500/40 bg-slate-900 p-5 text-center animate-[fadeIn_0.4s_ease-out]">
@@ -357,7 +386,7 @@ export default function Game() {
               {formatProfit(endOverlay.winner?.delta)}
             </p>
             <p className="text-xs text-slate-400 animate-pulse">
-              Returning to instructions…
+              Returning to room…
             </p>
           </div>
         </div>
